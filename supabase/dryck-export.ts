@@ -1,5 +1,5 @@
 // Exporterar alla dashboard-dataset (alla/untappd/iglaset) som en JSON. Anropas av GitHub Action varje natt.
-// GET/POST med header x-import-token (Vault: dryck_import_token).
+// GET/POST med header x-import-token (Vault: dryck_import_token). Innehåller även ölförslag och bevakade venues.
 import postgres from "npm:postgres@3.4.4";
 const sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { prepare: false, max: 1 });
 const Q: Record<string, string> = {
@@ -22,7 +22,18 @@ Deno.serve(async (req) => {
       ut[kalla] = {};
       for (const [id, q] of Object.entries(Q)) ut[kalla][id] = await sql.unsafe(q, [kalla]);
     }
-    return Response.json({ skapad: new Date().toISOString(), data: ut });
+    // Ölförslag (oberoende av urvalet Untappd/iglaset)
+    const forslag = await sql`
+      select ol_id::text id, namn, bryggeri, land, stil, stilfamilj, abv::float, round(global_betyg, 2)::float globalt, antal_betyg,
+             poang::float, finns_pa, pa_onskelistan, varfor, url, systembolaget
+      from (select *, row_number() over (order by poang desc) rn from dryck.v_forslag) f
+      where rn <= 400 or finns_pa is not null order by poang desc`;
+    const venuer = await sql`
+      select v.namn, v.url, to_char(v.meny_uppdaterad at time zone 'Europe/Stockholm', 'YYYY-MM-DD') uppdaterad,
+             count(m.ol_id) filter (where m.senast_sedd >= v.meny_hamtad)::int ol
+      from dryck.venue v left join dryck.venue_meny m on m.venue_id = v.id
+      where v.aktiv group by v.id order by v.namn`;
+    return Response.json({ skapad: new Date().toISOString(), data: ut, forslag, venuer });
   } catch (e) {
     return Response.json({ error: String((e as Error)?.message ?? e) }, { status: 500 });
   }

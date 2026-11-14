@@ -40,6 +40,7 @@
       document.getElementById('dash-root').hidden = false;
       window.__start();
       window.dash._load(out.data);
+      if (window.__startForslag) window.__startForslag({ forslag: out.forslag || [], venuer: out.venuer || [] });
       const t = document.createElement('p');
       t.style.cssText = 'text-align:center;font-size:12px;color:var(--color-fg-muted)';
       t.textContent = 'Uppdaterad ' + out.skapad.slice(0, 16).replace('T', ' ') + ' UTC';
