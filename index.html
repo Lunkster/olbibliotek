@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Ölbiblioteket</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%8D%BA%3C/text%3E%3C/svg%3E">
+<style>
+:root {
+  --color-fg:#2a1d12; --color-fg-muted:#6f5f50; --color-bg:#faf6ef; --color-panel:#fff; --color-border-line:#e3d9c8;
+  --color-ok:#3f7d2a; --color-bad:#b8404f;
+  --cds-gap-xs:4px; --cds-gap-sm:8px; --cds-gap-md:14px; --cds-gap-lg:22px;
+  --cds-pad-xs:4px; --cds-pad-sm:8px; --cds-pad-md:12px; --cds-pad-lg:18px; --cds-radius:10px;
+  --cds-font-size-caption:12.5px; --cds-font-size-body:15px; --cds-font-size-heading:16px; --cds-font-size-title:28px; --cds-font-weight-medium:600;
+  --cds-chart-grid:#e9e0d1; --cds-chart-axis:#8a7a68; --cds-chart-reference:#8a7a68; --cds-text-secondary:#6f5f50;
+  --cds-surface-popover:#fff; --cds-shadow-popover:0 4px 18px rgba(0,0,0,.18); --cds-border:#e3d9c8; --cds-dur-slow:300ms;
+  --font-anthropic-sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --font-anthropic-serif:Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --color-fg:#f1e7d6; --color-fg-muted:#b3a38f; --color-bg:#1b130d; --color-panel:#271b13; --color-border-line:#43332600;
+  --color-border-line:#4a392b; --cds-chart-grid:#3a2c20; --cds-chart-axis:#a09080; --cds-chart-reference:#a09080; --cds-text-secondary:#b3a38f;
+  --cds-surface-popover:#33241a; --cds-border:#4a392b; --color-ok:#8fc16a; --color-bad:#e0707e;
+} }
+html,body { margin:0; background:var(--color-bg); color:var(--color-fg); font-family:var(--font-anthropic-sans); }
+body { padding:18px; }
+.dash-skeleton { background:linear-gradient(90deg,transparent,rgba(128,128,128,.18),transparent); background-size:200% 100%; animation:sk 1.4s infinite; min-height:1em; border-radius:6px; }
+@keyframes sk { from { background-position:200% 0 } to { background-position:-200% 0 } }
+#lock { max-width:340px; margin:18vh auto 0; display:flex; flex-direction:column; gap:12px; text-align:center; }
+#lock[hidden] { display:none; }
+#lock h1 { font-family:var(--font-anthropic-serif); font-weight:400; margin:0; }
+#lock input[type=password] { font:inherit; padding:10px 12px; border-radius:var(--cds-radius); border:1px solid var(--color-border-line); background:var(--color-panel); color:var(--color-fg); }
+#lock button { font:inherit; padding:10px; border-radius:var(--cds-radius); border:0; background:#C8741A; color:#fff; cursor:pointer; }
+#lock label { font-size:13px; color:var(--color-fg-muted); }
+#lock .err { color:var(--color-bad); min-height:1.2em; font-size:13px; }
+</style>
+
+<style>
+
+/* Ölpalett: från ljus lager till stout, plus humlegrönt. Mellantoner som syns på både ljus och mörk bakgrund. */
+#dash-root .ob {
+  --ob-straw: #EDC64F; --ob-gold: #E3A126; --ob-amber: #C8741A; --ob-copper: #9A4519;
+  --ob-brown: #63301A; --ob-stout: #2A160C; --ob-hop: #6F9B3A; --ob-cherry: #B8404F;
+  --ob-foam: color-mix(in srgb, #FFF6E2 82%, var(--color-fg) 6%);
+  --ob-head-fill: color-mix(in srgb, var(--ob-gold) 9%, var(--color-panel));
+}
+#dash-root .ob { max-width: 1180px; margin-inline: auto; display: flex; flex-direction: column; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); color: var(--color-fg); }
+#dash-root .ob-head { display: flex; flex-direction: column; gap: var(--cds-gap-xs); }
+#dash-root .ob-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; display: flex; align-items: center; gap: 12px; }
+#dash-root .ob-title svg { flex: none; width: 30px; height: 40px; }
+#dash-root .ob-head { background: var(--ob-head-fill); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); }
+#dash-root .ob-tile-value { color: var(--color-fg); }
+#dash-root .ob-sw-du { background: var(--ob-amber); }
+#dash-root .ob-lede { margin: 0; color: var(--color-fg-muted); font-size: var(--cds-font-size-body); max-width: 70ch; line-height: 1.5; }
+#dash-root .ob-lede b { color: var(--color-fg); font-weight: 600; }
+#dash-root .ob-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); gap: var(--cds-gap-md); }
+#dash-root .ob-tile { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md) var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-xs); min-width: 0; }
+#dash-root .ob-tile-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+#dash-root .ob-tile-value { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.15; }
+#dash-root .ob-tile-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+#dash-root .ob-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: var(--cds-gap-md); }
+#dash-root .ob-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; position: relative; }
+#dash-root .ob-card h2 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+#dash-root .ob-note { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.45; }
+#dash-root .ob-chart { width: 100%; min-height: 220px; }
+#dash-root .ob-chart svg { display: block; overflow: visible; }
+#dash-root .ob-chart text { font-family: var(--font-anthropic-sans); }
+#dash-root .ob-legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); align-items: center; }
+#dash-root .ob-legend span { display: inline-flex; align-items: center; gap: 6px; }
+#dash-root .ob-sw { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+#dash-root .ob-sw-hollow { background: var(--color-panel); border: 1.5px solid var(--color-fg-muted); box-sizing: border-box; }
+#dash-root .ob-fail { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: inherit; height: 100%; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+#dash-root .ob-fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+#dash-root .ob-tip { position: absolute; z-index: 5; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); pointer-events: none; font-variant-numeric: tabular-nums; max-width: 16rem; }
+#dash-root .ob-tip-h { color: var(--cds-text-secondary); margin-bottom: 2px; }
+#dash-root .ob-tools { display: flex; gap: var(--cds-gap-sm); align-items: center; flex-wrap: wrap; }
+#dash-root .ob-search { font: inherit; font-size: var(--cds-font-size-caption); padding: 6px 10px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); min-width: 0; flex: 1 1 12rem; max-width: 20rem; }
+#dash-root .ob-tablewrap { overflow: auto; max-height: 26rem; }
+#dash-root table.ob-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+#dash-root .ob-table th { position: sticky; top: 0; background: var(--color-panel); text-align: left; font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding: 6px 8px; border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+#dash-root .ob-table th button { all: unset; cursor: pointer; }
+#dash-root .ob-table th button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+#dash-root .ob-table td { padding: 6px 8px; border-bottom: 1px solid var(--color-border-line); vertical-align: middle; }
+#dash-root .ob-table .num { text-align: right; }
+#dash-root .ob-table th.num { text-align: right; }
+#dash-root .ob-bar { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+#dash-root .ob-bar i { display: block; height: 6px; border-radius: 3px; background: currentColor; opacity: .55; }
+#dash-root .ob-bar-track { width: 4.5rem; display: flex; }
+#dash-root .ob-muted { color: var(--color-fg-muted); }
+#dash-root .ob-rating { display: inline-block; min-width: 2.6em; text-align: right; font-weight: 600; }
+#dash-root .ob-link { color: inherit; text-decoration: underline; text-decoration-color: var(--color-border-line); text-underline-offset: 3px; }
+#dash-root .ob-link:hover { text-decoration-color: currentColor; }
+#dash-root .ob-linkbtn { all: unset; cursor: pointer; text-decoration: underline; text-decoration-color: var(--color-border-line); text-underline-offset: 3px; }
+#dash-root .ob-linkbtn:hover { text-decoration-color: currentColor; }
+#dash-root .ob-linkbtn:focus-visible, #dash-root .ob-link:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; border-radius: 2px; }
+#dash-root .ob-select { font: inherit; font-size: var(--cds-font-size-caption); padding: 6px 8px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); min-width: 0; max-width: 100%; flex: 1 1 11rem; }
+#dash-root .ob-btn { font: inherit; font-size: var(--cds-font-size-caption); padding: 6px 12px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-panel); color: var(--color-fg); cursor: pointer; }
+#dash-root .ob-btn:hover { background: var(--color-bg); }
+#dash-root .ob-count { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+#dash-root .ob-rank { color: var(--color-fg-muted); width: 2.2em; }
+#dash-root tr.ob-flash td { background: color-mix(in srgb, var(--color-ok) 12%, transparent); }
+#dash-root .ob-seg { display: inline-flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; align-self: flex-start; margin-top: var(--cds-gap-sm); background: var(--color-panel); }
+#dash-root .ob-seg button { font: inherit; font-size: var(--cds-font-size-caption); padding: 6px 12px; border: 0; border-right: 1px solid var(--color-border-line); background: transparent; color: var(--color-fg-muted); cursor: pointer; }
+#dash-root .ob-seg button:last-child { border-right: 0; }
+#dash-root .ob-seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--ob-gold) 28%, var(--color-panel)); color: var(--color-fg); font-weight: 600; }
+#dash-root .ob-seg button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
+#dash-root .ob-empty { display: flex; align-items: center; justify-content: center; min-height: inherit; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); text-align: center; padding: var(--cds-pad-md); }
+@media (max-width: 640px) { #dash-root .ob-hide-narrow { display: none; } }
+#dash-root [data-dash-source-state=empty] { color: transparent; }
+#dash-root [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+
+</style>
+<script src="d3.min.js"></script>
+</head>
+<body>
+<form id="lock">
+  <h1>Ölbiblioteket</h1>
+  <input type="password" id="pw" placeholder="Lösenord" autocomplete="current-password" autofocus>
+  <label><input type="checkbox" id="remember"> Kom ihåg på den här enheten</label>
+  <button type="submit">Öppna</button>
+  <div class="err" id="err"></div>
+</form>
+<div id="dash-root" hidden>
+
+
+<div class="ob">
+  <header class="ob-head" id="oversikt">
+    <h1 class="ob-title"><svg viewBox="0 0 30 40" aria-hidden="true"><path d="M5 10 L7.5 37 Q7.7 39 9.7 39 H20.3 Q22.3 39 22.5 37 L25 10 Z" fill="var(--ob-amber)"/><path d="M5.6 16.5 L24.4 16.5 L25 10 L5 10 Z" fill="var(--ob-gold)" opacity=".55"/><circle cx="12" cy="27" r="1" fill="var(--ob-foam)" opacity=".7"/><circle cx="17.5" cy="31" r=".8" fill="var(--ob-foam)" opacity=".6"/><circle cx="15" cy="22" r=".7" fill="var(--ob-foam)" opacity=".6"/><path d="M3.5 10.5 Q3 5.5 7.5 5.2 Q9 1.5 13.5 2.6 Q16.5 0.4 19.8 2.8 Q24.6 2.4 25.6 6.4 Q27.4 8.4 25.6 10.8 Z" fill="var(--ob-foam)" stroke="var(--color-border-line)" stroke-width=".6"/><path d="M5 10 L7.5 37 Q7.7 39 9.7 39 H20.3 Q22.3 39 22.5 37 L25 10" fill="none" stroke="var(--color-fg-muted)" stroke-width="1" opacity=".55"/></svg>Ölbiblioteket</h1>
+    <p class="ob-lede" id="lede">Senaste 12 månaderna: <b data-source="oversikt" data-field="checkins_12m" data-row="0" class="dash-skeleton">—</b> check-ins med snittbetyg <b data-source="oversikt" data-field="snitt_12m" data-row="0" class="dash-skeleton">—</b>, mot <b data-source="oversikt" data-field="snittbetyg" data-row="0" class="dash-skeleton">—</b> totalt. Högst betyg ger du <b data-source="stilar" data-field="stilfamilj" data-row="0" class="dash-skeleton">—</b> och öl med <b data-source="humle" data-field="humle" data-row="0" class="dash-skeleton">—</b>.</p>
+    <div class="ob-seg" role="group" aria-label="Visa betyg från">
+      <button type="button" data-kalla="alla" aria-pressed="true">Allt</button>
+      <button type="button" data-kalla="untappd" aria-pressed="false">Untappd (2018–)</button>
+      <button type="button" data-kalla="iglaset" aria-pressed="false">iglaset (2010–2018)</button>
+    </div>
+  </header>
+
+  <section class="ob-tiles" id="nyckeltal" aria-label="Nyckeltal">
+    <div class="ob-tile"><span class="ob-tile-label">Check-ins</span><span class="ob-tile-value dash-skeleton" data-source="oversikt" data-field="checkins" data-row="0" data-fetchpriority="high">—</span><span class="ob-tile-sub">sedan <span data-source="oversikt" data-field="forsta" data-row="0">—</span></span></div>
+    <div class="ob-tile"><span class="ob-tile-label">Unika öl</span><span class="ob-tile-value dash-skeleton" data-source="oversikt" data-field="unika_ol" data-row="0">—</span><span class="ob-tile-sub">från <span data-source="oversikt" data-field="bryggerier" data-row="0">—</span> bryggerier</span></div>
+    <div class="ob-tile"><span class="ob-tile-label">Snittbetyg, allt</span><span class="ob-tile-value dash-skeleton" data-source="oversikt" data-field="snittbetyg" data-row="0">—</span><span class="ob-tile-sub">skala 0–5</span></div>
+    <div class="ob-tile"><span class="ob-tile-label">Snittbetyg, 12 mån</span><span class="ob-tile-value dash-skeleton" data-source="oversikt" data-field="snitt_12m" data-row="0">—</span><span class="ob-tile-sub" id="snitt-diff">&nbsp;</span></div>
+    <div class="ob-tile"><span class="ob-tile-label">Senaste check-in</span><span class="ob-tile-value dash-skeleton" data-source="oversikt" data-field="senaste" data-row="0">—</span><span class="ob-tile-sub" data-source="senaste" data-field="ol" data-row="0">—</span></div>
+  </section>
+
+  <div class="ob-grid">
+    <section class="ob-card" id="per-ar">
+      <h2>Per år</h2>
+      <p class="ob-note">Antal check-ins per år. Siffran över stapeln är årets snittbetyg.</p>
+      <div class="ob-chart" id="chart-ar" data-source="per_ar"></div>
+    </section>
+    <section class="ob-card" id="fordelning">
+      <h2>Hur du sätter betyg</h2>
+      <p class="ob-note">Antal check-ins per betyg i kvartssteg. Streckad linje är ditt snitt.</p>
+      <div class="ob-chart" id="chart-hist" data-source="betyg_fordelning oversikt"></div>
+    </section>
+  </div>
+
+  <div class="ob-grid">
+    <section class="ob-card" id="stilar-kort">
+      <h2>Ölstilar: du mot Untappd</h2>
+      <p class="ob-note">Stilfamiljer med minst 5 betyg, sorterade efter ditt snitt. Siffran till höger är antal check-ins.</p>
+      <div class="ob-legend"><span><i class="ob-sw ob-sw-du"></i>Ditt snitt, i stilens ungefärliga ölfärg</span><span><i class="ob-sw ob-sw-hollow"></i>Untappds globala snitt för samma öl</span></div>
+      <div class="ob-chart" id="chart-stilar" data-source="stilar"></div>
+    </section>
+    <section class="ob-card" id="humle-kort">
+      <h2>Humle: över eller under ditt snitt</h2>
+      <p class="ob-note">Snittbetyg för öl där humlesorten nämns i beskrivningen, jämfört med ditt totala snitt. Sorter med minst 5 check-ins. Humle hittad för <span data-source="oversikt" data-field="ol_med_humle" data-row="0">—</span> av <span data-source="oversikt" data-field="unika_ol" data-row="0">—</span> öl.</p>
+      <div class="ob-chart" id="chart-humle" data-source="humle"></div>
+    </section>
+  </div>
+
+  <section class="ob-card" id="bryggerier-kort">
+    <h2>Bryggerier</h2>
+    <p class="ob-note">Bryggerier med minst 5 betygsatta check-ins. Klicka på en rubrik för att sortera, på ett bryggeri för att se dess öl i topplistan, eller på bästa ölet för att öppna det på Untappd.</p>
+    <div class="ob-tools"><input class="ob-search" id="sok-bryggeri" type="search" placeholder="Sök bryggeri eller land" aria-label="Sök bryggeri eller land"></div>
+    <div class="ob-tablewrap">
+      <table class="ob-table" id="tabell-bryggerier" data-source="bryggerier" data-row-key="bryggeri">
+        <thead><tr>
+          <th data-field="bryggeri" aria-sort="none"><button type="button" data-sort="bryggeri">Bryggeri</button></th>
+          <th data-field="land" class="ob-hide-narrow" aria-sort="none"><button type="button" data-sort="land">Land</button></th>
+          <th data-field="checkins" class="num" aria-sort="descending"><button type="button" data-sort="checkins">Check-ins</button></th>
+          <th data-field="unika_ol" class="num ob-hide-narrow" aria-sort="none"><button type="button" data-sort="unika_ol">Unika öl</button></th>
+          <th data-field="snittbetyg" class="num" aria-sort="none"><button type="button" data-sort="snittbetyg">Snitt</button></th>
+          <th data-field="basta" class="num ob-hide-narrow" aria-sort="none"><button type="button" data-sort="basta">Bästa</button></th>
+          <th data-field="basta_ol" aria-sort="none"><button type="button" data-sort="basta_ol">Bästa öl</button></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="ob-card" id="topplista">
+    <h2>Topplista öl</h2>
+    <p class="ob-note">Alla öl du betygsatt, efter ditt snittbetyg. Vid lika betyg går öl du druckit fler gånger först. Klicka på ett öl för att öppna det på Untappd.</p>
+    <div class="ob-tools">
+      <select class="ob-select" id="filter-stil" aria-label="Öltyp" data-source="ol_topp"></select>
+      <select class="ob-select" id="filter-bryggeri" aria-label="Bryggeri" data-source="ol_topp"></select>
+      <button type="button" class="ob-btn" id="filter-rensa" hidden>Rensa filter</button>
+      <span class="ob-count" id="topp-antal"></span>
+    </div>
+    <div class="ob-tablewrap">
+      <table class="ob-table" id="tabell-topp" data-source="ol_topp" data-row-key="id">
+        <thead><tr>
+          <th class="ob-rank">#</th>
+          <th data-field="ol">Öl</th>
+          <th data-field="bryggeri" class="ob-hide-narrow">Bryggeri</th>
+          <th data-field="stil" class="ob-hide-narrow">Stil</th>
+          <th data-field="checkins" class="num ob-hide-narrow">Gånger</th>
+          <th data-field="mitt_betyg" class="num">Ditt betyg</th>
+          <th data-field="globalt" class="num ob-hide-narrow">Untappd</th>
+          <th data-field="senast" class="ob-hide-narrow">Senast</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="ob-card" id="senaste-kort">
+    <h2>Senaste check-ins</h2>
+    <p class="ob-note">De 20 senaste. Nya kommer in med den nattliga synken från Untappd.</p>
+    <div class="ob-tablewrap">
+      <table class="ob-table" id="tabell-senaste" data-source="senaste" data-row-key="id">
+        <thead><tr>
+          <th data-field="datum">Datum</th>
+          <th data-field="ol">Öl</th>
+          <th data-field="bryggeri" class="ob-hide-narrow">Bryggeri</th>
+          <th data-field="stil" class="ob-hide-narrow">Stil</th>
+          <th data-field="betyg" class="num">Betyg</th>
+          <th data-field="plats" class="ob-hide-narrow">Plats</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+
+</div>
+<script src="shim.js"></script>
+<script>
+function startDashboard() {
+
+const root = document.getElementById('dash-root');
+const nf2 = new Intl.NumberFormat('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const nf0 = new Intl.NumberFormat('sv-SE');
+const f2 = (v) => (v == null || Number.isNaN(+v) ? '—' : nf2.format(+v));
+const f0 = (v) => (v == null || Number.isNaN(+v) ? '—' : nf0.format(+v));
+const fSigned = (v) => (v > 0 ? '+' : v < 0 ? '−' : '±') + nf2.format(Math.abs(v));
+const css = (name) => getComputedStyle(root.querySelector('.ob') || root).getPropertyValue(name).trim();
+const beer = (n) => css('--ob-' + n);
+// Ungefärlig ölfärg (SRM) per stilfamilj
+const styleColor = (stil) => {
+  const s = String(stil || '');
+  const map = [
+    [/^(Lager|Pilsner|Kölsch|Helles|Light)/, 'straw'], [/^(Wheat|Witbier|Hefeweizen)/, 'straw'],
+    [/^(Blonde|Belgian Blonde|Belgian Tripel|Kellerbier|Festbier|Farmhouse|Golden|Pale Ale|Cream)/, 'gold'],
+    [/^(IPA|Bitter|Märzen|Amber)/, 'amber'],
+    [/^(Red Ale|Bock|Barleywine|Strong Ale|Old \/ Stock|Scotch|Belgian Dubbel|Belgian Strong)/, 'copper'],
+    [/^(Brown|Winter|Mild|Dunkel|Altbier)/, 'brown'],
+    [/^(Porter|Stout|Schwarzbier|Black)/, 'stout'],
+    [/^(Sour|Lambic|Fruit)/, 'cherry'],
+  ];
+  const hit = map.find(([re]) => re.test(s));
+  return beer(hit ? hit[1] : 'amber');
+};
+
+const measureCtx = document.createElement('canvas').getContext('2d');
+function textWidth(strings, px) {
+  measureCtx.font = px + 'px ' + (css('--font-anthropic-sans') || 'sans-serif');
+  return d3.max(strings, (s) => measureCtx.measureText(String(s)).width) || 0;
+}
+
+function tooltip(card) {
+  let t = card.querySelector(':scope > .ob-tip');
+  if (!t) { t = document.createElement('div'); t.className = 'ob-tip'; t.hidden = true; card.appendChild(t); }
+  return {
+    show(evt, lines) {
+      t.replaceChildren(...lines.map((l, i) => { const d = document.createElement('div'); d.textContent = l; if (i === 0) d.className = 'ob-tip-h'; return d; }));
+      t.hidden = false;
+      const r = card.getBoundingClientRect();
+      let x = evt.clientX - r.left + 14; const y = evt.clientY - r.top + 14;
+      if (x + t.offsetWidth > r.width - 6) x = evt.clientX - r.left - t.offsetWidth - 14;
+      t.style.left = Math.max(6, x) + 'px'; t.style.top = y + 'px';
+    },
+    hide() { t.hidden = true; },
+  };
+}
+
+// Visar laddning/fel i en diagramyta. Returnerar raderna när datan finns.
+function rowsFor(el, ...ids) {
+  const ds = ids.map((id) => dash.data(id));
+  const failed = ds.some((d) => d.status === 'error' || d.status === 'connect' || d.status === 'declined' || d.status === 'missing');
+  if (failed) {
+    el.classList.remove('dash-skeleton');
+    const f = document.createElement('div'); f.className = 'ob-fail'; f.textContent = 'Failed to load';
+    el.replaceChildren(f); return null;
+  }
+  if (ds.some((d) => d.status !== 'ok')) { el.replaceChildren(); el.classList.add('dash-skeleton'); return null; }
+  el.classList.remove('dash-skeleton');
+  return ds.map((d) => d.data);
+}
+
+function emptyNote(el, text) {
+  const d = document.createElement('div'); d.className = 'ob-empty';
+  d.textContent = text || 'Inga betyg i det här urvalet ännu.';
+  el.replaceChildren(d);
+}
+const segBtns = [...document.querySelectorAll('.ob-seg button')];
+segBtns.forEach((b) => b.addEventListener('click', () => dash.setParams({ kalla: b.dataset.kalla })));
+function drawSeg() {
+  const k = dash.params().kalla || 'alla';
+  segBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.kalla === k)));
+}
+
+function setMark(el, value, fmt) {
+  const d = dash.data(el.dataset.source);
+  if (d.status === 'ok' && d.data.length) {
+    const row = d.data[+(el.dataset.row || 0)];
+    el.textContent = fmt(row ? row[el.dataset.field] : null);
+    el.classList.remove('dash-skeleton');
+  } else if (d.status === 'ok') { el.textContent = '—'; el.classList.remove('dash-skeleton'); }
+  else if (d.status === 'loading') { el.classList.add('dash-skeleton'); }
+  else { el.textContent = '—'; el.classList.remove('dash-skeleton'); }
+}
+
+const fmtField = {
+  checkins: f0, unika_ol: f0, bryggerier: f0, checkins_12m: f0, ol_med_humle: f0,
+  snittbetyg: f2, snitt_12m: f2,
+  forsta: (v) => v || '—', senaste: (v) => v || '—',
+  stilfamilj: (v) => v || '—', humle: (v) => v || '—', ol: (v) => v || '—',
+};
+
+function drawMarks() {
+  root.querySelectorAll('.ob-head [data-source][data-field], .ob-tiles [data-source][data-field], .ob-note [data-source][data-field]').forEach((el) => {
+    setMark(el, null, fmtField[el.dataset.field] || ((v) => (v == null ? '—' : String(v))));
+  });
+  const o = dash.data('oversikt');
+  const diffEl = document.getElementById('snitt-diff');
+  if (o.status === 'ok' && o.data[0] && o.data[0].snitt_12m != null) {
+    const d = +o.data[0].snitt_12m - +o.data[0].snittbetyg;
+    diffEl.textContent = fSigned(d) + ' mot totalt';
+    diffEl.style.color = d > 0 ? 'var(--color-ok)' : d < 0 ? 'var(--color-bad)' : '';
+  } else { diffEl.textContent = ' '; }
+}
+
+function drawYears() {
+  const el = document.getElementById('chart-ar');
+  const got = rowsFor(el, 'per_ar'); if (!got) return;
+  if (!got[0].length) return emptyNote(el);
+  const rows = got[0].map((r) => ({ ar: +r.ar, checkins: +r.checkins, unika_ol: +r.unika_ol, snittbetyg: r.snittbetyg == null ? null : +r.snittbetyg }));
+  const W = Math.max(260, el.clientWidth), H = 220, m = { t: 22, r: 4, b: 24, l: 0 };
+  const yMax = d3.max(rows, (r) => r.checkins) || 1;
+  const y = d3.scaleLinear([0, yMax], [H - m.b, m.t]).nice(4);
+  m.l = textWidth(y.ticks(4).map(f0), 11) + 8;
+  const x = d3.scaleBand(rows.map((r) => r.ar), [m.l, W - m.r]).padding(0.28);
+  const narrow = x.bandwidth() < 30;
+  const svg = d3.create('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Check-ins och snittbetyg per år');
+  svg.append('g').selectAll('line').data(y.ticks(4)).join('line')
+    .attr('x1', m.l).attr('x2', W - m.r).attr('y1', (d) => y(d)).attr('y2', (d) => y(d)).attr('stroke', 'var(--cds-chart-grid)');
+  svg.append('g').selectAll('text').data(y.ticks(4)).join('text')
+    .attr('x', m.l - 6).attr('y', (d) => y(d)).attr('dy', '0.32em').attr('text-anchor', 'end').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(f0);
+  const tip = tooltip(el.closest('.ob-card'));
+  svg.append('g').selectAll('rect').data(rows).join('rect')
+    .attr('x', (r) => x(r.ar)).attr('width', x.bandwidth()).attr('y', (r) => y(r.checkins)).attr('height', (r) => y(0) - y(r.checkins))
+    .attr('rx', 3).attr('fill', beer('amber'))
+    .on('pointermove', (e, r) => tip.show(e, [String(r.ar), `${f0(r.checkins)} check-ins`, `${f0(r.unika_ol)} unika öl`, `Snittbetyg ${f2(r.snittbetyg)}`]))
+    .on('pointerleave', () => tip.hide());
+  svg.append('g').attr('pointer-events', 'none').selectAll('rect').data(rows.filter((r) => y(0) - y(r.checkins) > 8)).join('rect')
+    .attr('x', (r) => x(r.ar) - 1).attr('width', x.bandwidth() + 2).attr('y', (r) => y(r.checkins) - 2).attr('height', 6).attr('rx', 3)
+    .style('fill', 'var(--ob-foam)').attr('stroke', 'var(--color-border-line)').attr('stroke-width', 0.6);
+  svg.append('g').selectAll('text').data(rows).join('text')
+    .attr('x', (r) => x(r.ar) + x.bandwidth() / 2).attr('y', (r) => y(r.checkins) - 8).attr('text-anchor', 'middle')
+    .attr('font-size', narrow ? 9.5 : 11).attr('fill', 'var(--color-fg)').attr('font-weight', 600).text((r) => f2(r.snittbetyg));
+  svg.append('g').selectAll('text').data(rows).join('text')
+    .attr('x', (r) => x(r.ar) + x.bandwidth() / 2).attr('y', H - 6).attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)')
+    .text((r, i) => (narrow ? "'" + String(r.ar).slice(2) : String(r.ar)));
+  el.replaceChildren(svg.node());
+}
+
+function drawHist() {
+  const el = document.getElementById('chart-hist');
+  const got = rowsFor(el, 'betyg_fordelning', 'oversikt'); if (!got) return;
+  if (!got[0].length) return emptyNote(el);
+  const rows = got[0].map((r) => ({ betyg: +r.betyg, checkins: +r.checkins }));
+  const mean = got[1][0] ? +got[1][0].snittbetyg : null;
+  const steps = d3.range(1, 21).map((i) => i * 0.25);
+  const byB = new Map(rows.map((r) => [r.betyg.toFixed(2), r.checkins]));
+  const W = Math.max(260, el.clientWidth), H = 220, m = { t: 22, r: 4, b: 24, l: 0 };
+  const y = d3.scaleLinear([0, d3.max(rows, (r) => r.checkins) || 1], [H - m.b, m.t]).nice(4);
+  m.l = textWidth(y.ticks(4).map(f0), 11) + 8;
+  const x = d3.scaleBand(steps.map((s) => s.toFixed(2)), [m.l, W - m.r]).padding(0.18);
+  const xc = d3.scaleLinear([0.25, 5], [x('0.25') + x.bandwidth() / 2, x('5.00') + x.bandwidth() / 2]);
+  const svg = d3.create('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Fördelning av betyg');
+  svg.append('g').selectAll('line').data(y.ticks(4)).join('line')
+    .attr('x1', m.l).attr('x2', W - m.r).attr('y1', (d) => y(d)).attr('y2', (d) => y(d)).attr('stroke', 'var(--cds-chart-grid)');
+  svg.append('g').selectAll('text').data(y.ticks(4)).join('text')
+    .attr('x', m.l - 6).attr('y', (d) => y(d)).attr('dy', '0.32em').attr('text-anchor', 'end').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(f0);
+  const tip = tooltip(el.closest('.ob-card'));
+  const total = d3.sum(rows, (r) => r.checkins) || 1;
+  const srm = d3.scaleLinear([0.25, 1.75, 3, 4, 5], [beer('straw'), beer('gold'), beer('amber'), beer('copper'), beer('brown')]).interpolate(d3.interpolateRgb);
+  svg.append('g').selectAll('rect').data(steps.filter((s) => byB.has(s.toFixed(2)))).join('rect')
+    .attr('x', (s) => x(s.toFixed(2))).attr('width', x.bandwidth())
+    .attr('y', (s) => y(byB.get(s.toFixed(2)))).attr('height', (s) => y(0) - y(byB.get(s.toFixed(2))))
+    .attr('rx', 3).attr('fill', (s) => srm(s))
+    .attr('stroke', (s) => (mean != null && Math.abs(s - mean) < 0.125 ? 'var(--color-fg)' : 'none')).attr('stroke-width', 1.5)
+    .on('pointermove', (e, s) => { const n = byB.get(s.toFixed(2)); tip.show(e, [`Betyg ${f2(s)}`, `${f0(n)} check-ins`, `${nf2.format((n / total) * 100)} % av alla`]); })
+    .on('pointerleave', () => tip.hide());
+  svg.append('g').selectAll('text').data([1, 2, 3, 4, 5]).join('text')
+    .attr('x', (v) => xc(v)).attr('y', H - 6).attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text((v) => String(v));
+  if (mean != null) {
+    const mx = xc(mean);
+    svg.append('line').attr('x1', mx).attr('x2', mx).attr('y1', m.t - 4).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    const label = `Ditt snitt ${f2(mean)}`;
+    const lw = textWidth([label], 11);
+    const anchorEnd = mx + lw + 6 > W - m.r;
+    svg.append('text').attr('x', anchorEnd ? mx - 6 : mx + 6).attr('y', m.t - 8).attr('text-anchor', anchorEnd ? 'end' : 'start')
+      .attr('font-size', 11).attr('fill', 'var(--color-fg)').text(label);
+  }
+  el.replaceChildren(svg.node());
+}
+
+function drawStyles() {
+  const el = document.getElementById('chart-stilar');
+  const got = rowsFor(el, 'stilar'); if (!got) return;
+  if (!got[0].length) return emptyNote(el, 'Inga stilfamiljer med minst 5 betyg i det här urvalet ännu.');
+  const rows = got[0].map((r) => ({ stil: r.stilfamilj, n: +r.checkins, du: +r.snittbetyg, global: r.globalt_snitt == null ? null : +r.globalt_snitt }));
+  const rowH = 24, top = 24;
+  const W = Math.max(260, el.clientWidth), H = top + rows.length * rowH + 4;
+  const labelW = Math.min(W * 0.42, textWidth(rows.map((r) => r.stil), 12) + 10);
+  const countW = textWidth(rows.map((r) => f0(r.n)), 11) + 12;
+  const vals = rows.flatMap((r) => [r.du, r.global]).filter((v) => v != null);
+  const x = d3.scaleLinear([Math.floor((d3.min(vals) - 0.1) * 4) / 4, Math.ceil((d3.max(vals) + 0.1) * 4) / 4], [labelW + 8, W - countW - 6]);
+  const ticks = x.ticks(W < 420 ? 3 : 5);
+  const svg = d3.create('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Ditt snittbetyg per stilfamilj jämfört med Untappd');
+  svg.append('g').selectAll('line').data(ticks).join('line')
+    .attr('x1', (d) => x(d)).attr('x2', (d) => x(d)).attr('y1', top - 6).attr('y2', H - 4).attr('stroke', 'var(--cds-chart-grid)');
+  svg.append('g').selectAll('text').data(ticks).join('text')
+    .attr('x', (d) => x(d)).attr('y', 11).attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(f2);
+  const tip = tooltip(el.closest('.ob-card'));
+  const g = svg.append('g').selectAll('g').data(rows).join('g').attr('transform', (r, i) => `translate(0,${top + i * rowH + rowH / 2})`);
+  g.append('rect').attr('x', 0).attr('y', -rowH / 2).attr('width', W).attr('height', rowH).attr('fill', 'transparent')
+    .on('pointermove', (e, r) => tip.show(e, [r.stil, `Ditt snitt ${f2(r.du)}`, `Untappd globalt ${f2(r.global)}`, `${f0(r.n)} check-ins`]))
+    .on('pointerleave', () => tip.hide());
+  g.append('text').attr('x', labelW).attr('dy', '0.32em').attr('text-anchor', 'end').attr('font-size', 12).attr('fill', 'var(--color-fg)').attr('pointer-events', 'none')
+    .text((r) => r.stil);
+  g.filter((r) => r.global != null).append('line').attr('x1', (r) => x(r.global)).attr('x2', (r) => x(r.du)).attr('stroke', 'var(--color-border-line)').attr('stroke-width', 2).attr('pointer-events', 'none');
+  g.filter((r) => r.global != null).append('circle').attr('cx', (r) => x(r.global)).attr('r', 4).attr('fill', 'var(--color-panel)').attr('stroke', 'var(--color-fg-muted)').attr('stroke-width', 1.5).attr('pointer-events', 'none');
+  g.append('circle').attr('cx', (r) => x(r.du)).attr('r', 5.5).attr('fill', (r) => styleColor(r.stil)).attr('stroke', 'var(--color-fg-muted)').attr('stroke-width', 0.8).attr('pointer-events', 'none');
+  g.append('text').attr('x', W - 2).attr('dy', '0.32em').attr('text-anchor', 'end').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').attr('pointer-events', 'none')
+    .text((r) => f0(r.n));
+  el.replaceChildren(svg.node());
+}
+
+function drawHops() {
+  const el = document.getElementById('chart-humle');
+  const got = rowsFor(el, 'humle'); if (!got) return;
+  if (!got[0].length) return emptyNote(el, 'Inga humlesorter med minst 5 check-ins i det här urvalet ännu.');
+  const rows = got[0].map((r) => ({ humle: r.humle, ursprung: r.ursprung, ol: +r.antal_ol, n: +r.checkins, snitt: +r.snittbetyg, diff: +r.diff }))
+    .sort((a, b) => b.diff - a.diff);
+  const rowH = 24, top = 24;
+  const W = Math.max(260, el.clientWidth), H = top + rows.length * rowH + 4;
+  const labels = rows.map((r) => `${r.humle} · ${r.ursprung || ''}`);
+  const labelW = Math.min(W * 0.42, textWidth(labels, 12) + 10);
+  const valW = textWidth(rows.map((r) => fSigned(r.diff)), 11) + 8;
+  const ext = Math.max(0.2, d3.max(rows, (r) => Math.abs(r.diff)) || 0.2);
+  const x = d3.scaleLinear([-ext, ext], [labelW + 8 + valW, W - valW]);
+  const svg = d3.create('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Snittbetyg per humlesort jämfört med ditt snitt');
+  svg.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', top - 6).attr('y2', H - 4).attr('stroke', 'var(--cds-chart-axis)');
+  svg.append('text').attr('x', x(0)).attr('y', 11).attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text('ditt snitt');
+  const tip = tooltip(el.closest('.ob-card'));
+  const g = svg.append('g').selectAll('g').data(rows).join('g').attr('transform', (r, i) => `translate(0,${top + i * rowH + rowH / 2})`);
+  g.append('rect').attr('x', 0).attr('y', -rowH / 2).attr('width', W).attr('height', rowH).attr('fill', 'transparent')
+    .on('pointermove', (e, r) => tip.show(e, [`${r.humle} (${r.ursprung || '–'})`, `Snittbetyg ${f2(r.snitt)} (${fSigned(r.diff)})`, `${f0(r.n)} check-ins av ${f0(r.ol)} öl`]))
+    .on('pointerleave', () => tip.hide());
+  g.append('text').attr('x', labelW).attr('dy', '0.32em').attr('text-anchor', 'end').attr('font-size', 12).attr('fill', 'var(--color-fg)').attr('pointer-events', 'none')
+    .text((r) => r.humle);
+  g.append('rect').attr('pointer-events', 'none')
+    .attr('x', (r) => Math.min(x(0), x(r.diff))).attr('width', (r) => Math.max(1, Math.abs(x(r.diff) - x(0))))
+    .attr('y', -6).attr('height', 12).attr('rx', 4)
+    .attr('fill', (r) => (r.diff >= 0 ? beer('hop') : beer('copper'))).attr('fill-opacity', (r) => (r.diff >= 0 ? 1 : 0.7));
+  g.append('text').attr('pointer-events', 'none').attr('dy', '0.32em').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)')
+    .attr('x', (r) => (r.diff >= 0 ? x(r.diff) + 4 : x(r.diff) - 4)).attr('text-anchor', (r) => (r.diff >= 0 ? 'start' : 'end'))
+    .text((r) => fSigned(r.diff));
+  el.replaceChildren(svg.node());
+}
+
+// Bryggeritabell med sortering och sök
+const brState = { key: 'checkins', dir: -1, q: '' };
+const sok = document.getElementById('sok-bryggeri');
+sok.addEventListener('input', () => { brState.q = sok.value.trim().toLowerCase(); drawBreweries(); });
+document.querySelectorAll('#tabell-bryggerier th button').forEach((b) => b.addEventListener('click', () => {
+  const k = b.dataset.sort;
+  if (brState.key === k) brState.dir *= -1; else { brState.key = k; brState.dir = (k === 'bryggeri' || k === 'land') ? 1 : -1; }
+  drawBreweries();
+}));
+function drawBreweries() {
+  const table = document.getElementById('tabell-bryggerier');
+  const tbody = table.querySelector('tbody');
+  const d = dash.data('bryggerier');
+  table.querySelectorAll('th').forEach((th) => th.setAttribute('aria-sort', th.dataset.field === brState.key ? (brState.dir > 0 ? 'ascending' : 'descending') : 'none'));
+  if (d.status !== 'ok') {
+    const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 7;
+    if (d.status === 'loading') { td.className = 'dash-skeleton'; td.textContent = '—'; } else { const f = document.createElement('div'); f.className = 'ob-fail'; f.textContent = 'Failed to load'; td.appendChild(f); }
+    tr.appendChild(td); tbody.replaceChildren(tr); return;
+  }
+  const numKeys = ['checkins', 'unika_ol', 'snittbetyg', 'basta'];
+  const rows = d.data.filter((r) => !brState.q || `${r.bryggeri} ${r.land}`.toLowerCase().includes(brState.q))
+    .slice().sort((a, b) => {
+      const k = brState.key;
+      if (numKeys.includes(k)) return brState.dir * ((+a[k] || 0) - (+b[k] || 0));
+      return brState.dir * String(a[k] || '').localeCompare(String(b[k] || ''), 'sv');
+    });
+  const maxB = 5;
+  tbody.replaceChildren(...rows.map((r) => {
+    const tr = document.createElement('tr');
+    const cell = (text, cls) => { const td = document.createElement('td'); if (cls) td.className = cls; td.textContent = text; return td; };
+    const nameTd = document.createElement('td');
+    const nameBtn = document.createElement('button'); nameBtn.type = 'button'; nameBtn.className = 'ob-linkbtn'; nameBtn.textContent = r.bryggeri;
+    nameBtn.addEventListener('click', () => showBrewery(r.bryggeri));
+    nameTd.appendChild(nameBtn); tr.appendChild(nameTd);
+    tr.appendChild(cell(r.land || '', 'ob-hide-narrow ob-muted'));
+    tr.appendChild(cell(f0(r.checkins), 'num'));
+    tr.appendChild(cell(f0(r.unika_ol), 'num ob-hide-narrow'));
+    const td = document.createElement('td'); td.className = 'num';
+    const wrap = document.createElement('div'); wrap.className = 'ob-bar';
+    const track = document.createElement('span'); track.className = 'ob-bar-track';
+    const bar = document.createElement('i'); bar.style.width = `${Math.max(2, (+r.snittbetyg / maxB) * 100)}%`; bar.style.background = 'linear-gradient(90deg, var(--ob-straw), var(--ob-amber))'; bar.style.opacity = '1';
+    track.appendChild(bar);
+    const v = document.createElement('span'); v.className = 'ob-rating'; v.textContent = f2(r.snittbetyg);
+    wrap.append(track, v); td.appendChild(wrap); tr.appendChild(td);
+    tr.appendChild(cell(f2(r.basta), 'num ob-hide-narrow'));
+    const bestTd = document.createElement('td');
+    if (r.basta_ol) {
+      const a = document.createElement('a'); a.className = 'ob-link'; a.textContent = r.basta_ol;
+      if (/^https:\/\/untappd\.com\//.test(r.basta_ol_url || '')) { a.href = r.basta_ol_url; a.target = '_blank'; a.rel = 'noopener'; }
+      bestTd.appendChild(a);
+    }
+    tr.appendChild(bestTd);
+    return tr;
+  }));
+}
+
+// Topplista med filter på öltyp och bryggeri (filtreras i sidan, alla öl laddas en gång)
+const topState = { stil: '', bryggeri: '' };
+const selStil = document.getElementById('filter-stil');
+const selBr = document.getElementById('filter-bryggeri');
+const btnRensa = document.getElementById('filter-rensa');
+selStil.addEventListener('change', () => { topState.stil = selStil.value; drawTop(); });
+selBr.addEventListener('change', () => { topState.bryggeri = selBr.value; drawTop(); });
+btnRensa.addEventListener('click', () => { topState.stil = ''; topState.bryggeri = ''; drawTop(); });
+function showBrewery(name) {
+  topState.bryggeri = name; topState.stil = '';
+  drawTop();
+  const card = document.getElementById('topplista');
+  card.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  dash.setLink('topplista');
+}
+function fillSelect(sel, allLabel, values, current) {
+  const opts = [new Option(allLabel, '')].concat(values.map((v) => new Option(v.label, v.value)));
+  sel.replaceChildren(...opts);
+  sel.value = current;
+  if (sel.value !== current) sel.value = '';
+}
+function drawTop() {
+  const table = document.getElementById('tabell-topp');
+  const tbody = table.querySelector('tbody');
+  const d = dash.data('ol_topp');
+  btnRensa.hidden = !(topState.stil || topState.bryggeri);
+  if (d.status !== 'ok') {
+    const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 8;
+    if (d.status === 'loading') { td.className = 'dash-skeleton'; td.textContent = '—'; } else { const f = document.createElement('div'); f.className = 'ob-fail'; f.textContent = 'Failed to load'; td.appendChild(f); }
+    tr.appendChild(td); tbody.replaceChildren(tr); document.getElementById('topp-antal').textContent = ''; return;
+  }
+  const all = d.data;
+  // Valen räknas på de öl som det andra filtret släpper igenom
+  const forStil = all.filter((r) => !topState.bryggeri || r.bryggeri === topState.bryggeri);
+  const forBr = all.filter((r) => !topState.stil || r.stilfamilj === topState.stil);
+  const countBy = (rows, key) => d3.rollups(rows, (v) => v.length, (r) => r[key]).filter(([k]) => k).sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'sv'));
+  fillSelect(selStil, 'Alla öltyper', countBy(forStil, 'stilfamilj').map(([k, n]) => ({ value: k, label: `${k} (${n})` })), topState.stil);
+  fillSelect(selBr, 'Alla bryggerier', countBy(forBr, 'bryggeri').map(([k, n]) => ({ value: k, label: `${k} (${n})` })), topState.bryggeri);
+  topState.stil = selStil.value; topState.bryggeri = selBr.value;
+  btnRensa.hidden = !(topState.stil || topState.bryggeri);
+  const rows = all.filter((r) => (!topState.stil || r.stilfamilj === topState.stil) && (!topState.bryggeri || r.bryggeri === topState.bryggeri));
+  const shown = rows.slice(0, 100);
+  document.getElementById('topp-antal').textContent = rows.length > shown.length ? `Visar ${f0(shown.length)} av ${f0(rows.length)}` : `${f0(rows.length)} öl`;
+  tbody.replaceChildren(...shown.map((r, i) => {
+    const tr = document.createElement('tr'); tr.dataset.key = String(r.id);
+    const cell = (text, cls) => { const td = document.createElement('td'); if (cls) td.className = cls; td.textContent = text; return td; };
+    tr.appendChild(cell(String(i + 1), 'ob-rank'));
+    const olTd = document.createElement('td');
+    const a = document.createElement('a'); a.className = 'ob-link'; a.textContent = r.ol;
+    if (/^https:\/\/untappd\.com\//.test(r.url || '')) { a.href = r.url; a.target = '_blank'; a.rel = 'noopener'; }
+    olTd.appendChild(a); tr.appendChild(olTd);
+    tr.appendChild(cell(r.bryggeri || '', 'ob-hide-narrow'));
+    tr.appendChild(cell(r.stil || '', 'ob-hide-narrow ob-muted'));
+    tr.appendChild(cell(f0(r.checkins), 'num ob-hide-narrow'));
+    const b = cell(f2(r.mitt_betyg), 'num'); b.style.fontWeight = '600'; tr.appendChild(b);
+    tr.appendChild(cell(r.globalt == null ? '–' : f2(r.globalt), 'num ob-hide-narrow ob-muted'));
+    tr.appendChild(cell(r.senast || '', 'ob-hide-narrow ob-muted'));
+    return tr;
+  }));
+}
+
+function drawLatest() {
+  const table = document.getElementById('tabell-senaste');
+  const tbody = table.querySelector('tbody');
+  const d = dash.data('senaste');
+  if (d.status !== 'ok') {
+    const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 6;
+    if (d.status === 'loading') { td.className = 'dash-skeleton'; td.textContent = '—'; } else { const f = document.createElement('div'); f.className = 'ob-fail'; f.textContent = 'Failed to load'; td.appendChild(f); }
+    tr.appendChild(td); tbody.replaceChildren(tr); return;
+  }
+  tbody.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr'); tr.dataset.key = String(r.id);
+    const cell = (text, cls) => { const td = document.createElement('td'); if (cls) td.className = cls; td.textContent = text; return td; };
+    tr.appendChild(cell(r.datum, 'ob-muted'));
+    tr.appendChild(cell(r.ol));
+    tr.appendChild(cell(r.bryggeri, 'ob-hide-narrow'));
+    tr.appendChild(cell(r.stil || '', 'ob-hide-narrow ob-muted'));
+    tr.appendChild(cell(r.betyg == null ? '–' : f2(r.betyg), 'num'));
+    tr.appendChild(cell(r.plats || '', 'ob-hide-narrow ob-muted'));
+    return tr;
+  }));
+}
+
+dash.onData(() => {
+  drawSeg();
+  drawMarks();
+  drawYears();
+  drawHist();
+  drawStyles();
+  drawHops();
+  drawBreweries();
+  drawTop();
+  drawLatest();
+});
+
+}
+window.__start = startDashboard;
+</script>
+</body>
+</html>
