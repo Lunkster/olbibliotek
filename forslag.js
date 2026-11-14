@@ -22,6 +22,7 @@
   const lank = (href, text, cls) => el('a', { href, target: '_blank', rel: 'noopener', class: cls, text });
 
   window.__startForslag = ({ forslag = [], venuer = [] } = {}) => {
+    forslag.forEach((r, i) => { r.rang = i + 1; });
     const ob = document.querySelector('#dash-root .ob');
     const head = ob.querySelector('.ob-head');
     const seg = head.querySelector('.ob-seg');
@@ -45,6 +46,40 @@
       el('option', { value: '', text: 'Alla öltyper' }), ...stilar.map((s) => el('option', { value: s, text: s })));
     const sok = el('input', { class: 'ob-search', type: 'search', placeholder: 'Sök öl eller bryggeri', 'aria-label': 'Sök öl eller bryggeri' });
     const antal = el('span', { class: 'ob-count' });
+    // Sortering: klick på rubrik sorterar, klick igen vänder. Text stigande först, siffror fallande först.
+    const KOLUMNER = [
+      { nyckel: 'rang', text: '#', cls: 'ob-rank', typ: 'tal', start: 'asc' },
+      { nyckel: 'namn', text: 'Öl', typ: 'text' },
+      { nyckel: 'stil', text: 'Stil', cls: 'ob-hide-narrow', typ: 'text' },
+      { nyckel: 'abv', text: 'ABV', cls: 'num ob-hide-narrow', typ: 'tal' },
+      { nyckel: 'globalt', text: 'Untappd', cls: 'num', typ: 'tal' },
+      { nyckel: 'antal_betyg', text: 'Antal betyg', cls: 'num ob-hide-narrow', typ: 'tal' },
+      { nyckel: 'finns_pa', text: 'Finns på', cls: 'ob-hide-narrow', typ: 'text' },
+      { nyckel: null, text: 'Systembolaget' },
+    ];
+    const sortering = { nyckel: 'rang', riktning: 'asc' };
+    const rubriker = [];
+    function rubrik(k) {
+      if (!k.nyckel) return el('th', { class: k.cls, text: k.text });
+      const knapp = el('button', { type: 'button', text: k.text });
+      const th = el('th', { class: k.cls, 'aria-sort': k.nyckel === 'rang' ? 'ascending' : 'none' }, knapp);
+      knapp.addEventListener('click', () => {
+        if (sortering.nyckel === k.nyckel) sortering.riktning = sortering.riktning === 'asc' ? 'desc' : 'asc';
+        else { sortering.nyckel = k.nyckel; sortering.riktning = k.start || (k.typ === 'text' ? 'asc' : 'desc'); }
+        rubriker.forEach(([kk, t]) => t.setAttribute('aria-sort', kk.nyckel !== sortering.nyckel ? 'none' : sortering.riktning === 'asc' ? 'ascending' : 'descending'));
+        visas = STEG; rita();
+      });
+      rubriker.push([k, th]);
+      return th;
+    }
+    const jamfor = (a, b) => {
+      const k = KOLUMNER.find((x) => x.nyckel === sortering.nyckel);
+      const va = a[k.nyckel], vb = b[k.nyckel];
+      if (va == null || va === '') return vb == null || vb === '' ? a.rang - b.rang : 1;  // tomma sist
+      if (vb == null || vb === '') return -1;
+      const d = k.typ === 'text' ? String(va).localeCompare(String(vb), 'sv') : va - vb;
+      return (sortering.riktning === 'asc' ? d : -d) || a.rang - b.rang;
+    };
     const tbody = el('tbody');
     const mer = el('button', { type: 'button', class: 'ob-btn', text: 'Visa fler' });
     const sec = el('section', { class: 'ob-card ob-forslag', id: 'forslag' },
@@ -55,10 +90,7 @@
         ...BUTIKER.flatMap((b, i) => [i ? ', ' : '', lank(b.url, b.namn)])),
       el('div', { class: 'ob-tools' }, selVar, selStil, sok, antal),
       el('div', { class: 'ob-tablewrap' }, el('table', { class: 'ob-table' },
-        el('thead', {}, el('tr', {},
-          el('th', { class: 'ob-rank', text: '#' }), el('th', { text: 'Öl' }), el('th', { class: 'ob-hide-narrow', text: 'Stil' }),
-          el('th', { class: 'num ob-hide-narrow', text: 'ABV' }), el('th', { class: 'num', text: 'Untappd' }),
-          el('th', { class: 'ob-hide-narrow', text: 'Finns på' }), el('th', { text: 'Systembolaget' }))),
+        el('thead', {}, el('tr', {}, ...KOLUMNER.map(rubrik))),
         tbody)),
       el('div', { class: 'ob-tools' }, mer));
     ob.append(sec);
@@ -74,20 +106,20 @@
         (!q || `${r.namn} ${r.bryggeri || ''}`.toLowerCase().includes(q)));
     }
     function rita() {
-      const rader = urval();
+      const rader = urval().sort(jamfor);
       antal.textContent = `Visar ${nf0.format(Math.min(visas, rader.length))} av ${nf0.format(rader.length)}`;
-      tbody.replaceChildren(...rader.slice(0, visas).map((r, i) => {
+      tbody.replaceChildren(...rader.slice(0, visas).map((r) => {
         const namn = el('div', {}, lank(r.url, r.namn, 'ob-link'));
         if (r.pa_onskelistan) namn.append(' ', el('span', { class: 'ob-badge', text: 'Önskelista' }));
         const info = el('td', {}, namn, el('div', { class: 'ob-muted', text: [r.bryggeri, r.land].filter(Boolean).join(', ') }));
         if (r.varfor) info.append(el('div', { class: 'ob-why', text: r.varfor }));
         return el('tr', {},
-          el('td', { class: 'ob-rank ob-muted', text: String(i + 1) }),
+          el('td', { class: 'ob-rank ob-muted', text: String(r.rang) }),
           info,
           el('td', { class: 'ob-hide-narrow ob-muted', text: r.stil || '' }),
           el('td', { class: 'num ob-hide-narrow', text: r.abv == null ? '–' : nf1.format(r.abv) + ' %' }),
-          el('td', { class: 'num' }, r.globalt == null ? '–' : nf2.format(r.globalt),
-            r.antal_betyg ? el('div', { class: 'ob-muted', text: `${nf0.format(r.antal_betyg)} betyg` }) : null),
+          el('td', { class: 'num', text: r.globalt == null ? '–' : nf2.format(r.globalt) }),
+          el('td', { class: 'num ob-hide-narrow ob-muted', text: r.antal_betyg == null ? '–' : nf0.format(r.antal_betyg) }),
           el('td', { class: 'ob-hide-narrow ob-muted', text: r.finns_pa || '' }),
           el('td', {}, lank(r.systembolaget, 'Sök', 'ob-link')));
       }));

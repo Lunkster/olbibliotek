@@ -118,6 +118,8 @@ body { padding:18px; }
 #dash-root .ob-tabs button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
 #dash-root .ob-forslag .ob-tablewrap { max-height: none; }
 #dash-root .ob-forslag td { vertical-align: top; }
+#dash-root .ob-forslag th[aria-sort="ascending"] button::after { content: " ▲"; font-size: 9px; }
+#dash-root .ob-forslag th[aria-sort="descending"] button::after { content: " ▼"; font-size: 9px; }
 #dash-root .ob-why { font-size: 11.5px; color: var(--color-fg-muted); margin-top: 2px; max-width: 46ch; }
 #dash-root .ob-badge { display: inline-block; font-size: 10.5px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--ob-hop) 22%, var(--color-panel)); color: var(--color-fg); vertical-align: 1px; }
 #dash-root .ob-forslag a { color: inherit; text-decoration-color: color-mix(in srgb, var(--ob-amber) 70%, transparent); text-underline-offset: 2px; }
