@@ -53,7 +53,10 @@
         if (ruta.checked) valdaStilar.add(st); else valdaStilar.delete(st);
         stilAndrad();
       });
-      return el('label', { class: 'ob-multi-rad' }, ruta, ` ${st} `, el('span', { class: 'ob-muted', text: `(${antalPerStil.get(st)})` }));
+      const tal = el('span', { class: 'ob-muted', text: `(${antalPerStil.get(st)})` });
+      const rad = el('label', { class: 'ob-multi-rad' }, ruta, ` ${st} `, tal);
+      rad._stil = st; rad._ruta = ruta; rad._tal = tal;
+      return rad;
     });
     const selStil = el('details', { class: 'ob-multi' },
       el('summary', { class: 'ob-select', 'aria-label': 'Öltyp' }, stilEtikett),
@@ -122,10 +125,18 @@
 
     function urval() {
       const q = sok.value.trim().toLowerCase();
-      return forslag.filter((r) =>
+      // Allt utom öltypen – används också för antalen i öltypslistan
+      const ovriga = forslag.filter((r) =>
         (!selVar.value || (selVar.value === '*' ? r.finns_pa : (r.finns_pa || '').split(', ').includes(selVar.value))) &&
-        (!valdaStilar.size || valdaStilar.has(r.stilfamilj)) &&
         (!q || `${r.namn} ${r.bryggeri || ''}`.toLowerCase().includes(q)));
+      const perStil = new Map();
+      for (const r of ovriga) if (r.stilfamilj) perStil.set(r.stilfamilj, (perStil.get(r.stilfamilj) || 0) + 1);
+      for (const rad of stilRutor) {
+        const n = perStil.get(rad._stil) || 0;
+        rad._tal.textContent = `(${n})`;
+        rad.hidden = n === 0 && !rad._ruta.checked;  // valda öltyper syns alltid, även med 0
+      }
+      return ovriga.filter((r) => !valdaStilar.size || valdaStilar.has(r.stilfamilj));
     }
     function rita() {
       const rader = urval().sort(jamfor);
