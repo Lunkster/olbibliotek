@@ -1,0 +1,42 @@
+name: Uppdatera ölsidan
+on:
+  schedule:
+    - cron: "45 3 * * *"   # efter nattsynken (02:17 UTC)
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  bygg:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Hämta data från Supabase
+        env:
+          EXPORT_TOKEN: ${{ secrets.EXPORT_TOKEN }}
+        run: |
+          curl -fsS --max-time 120 -H "x-import-token: $EXPORT_TOKEN" \
+            https://nlvgisjssbjethumvgdz.supabase.co/functions/v1/dryck-export -o export.json
+      - name: Kryptera
+        env:
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: |
+          mkdir -p _site
+          node kryptera.mjs export.json _site/data.enc.json
+          cp index.html shim.js d3.min.js _site/
+          rm export.json
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+      - id: deploy
+        uses: actions/deploy-pages@v4
