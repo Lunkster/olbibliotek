@@ -42,8 +42,30 @@
       el('option', { value: '*', text: 'Finns på något av dina ställen' }),
       ...venuer.filter((v) => v.ol).map((v) => el('option', { value: v.namn, text: `Finns på ${v.namn}` })));
     const stilar = [...new Set(forslag.map((r) => r.stilfamilj).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'sv'));
-    const selStil = el('select', { class: 'ob-select', 'aria-label': 'Öltyp' },
-      el('option', { value: '', text: 'Alla öltyper' }), ...stilar.map((s) => el('option', { value: s, text: s })));
+    // Öltyp: flerval med kryssrutor. Inget valt = alla.
+    const antalPerStil = forslag.reduce((m, r) => (r.stilfamilj ? m.set(r.stilfamilj, (m.get(r.stilfamilj) || 0) + 1) : m), new Map());
+    const valdaStilar = new Set();
+    const stilEtikett = el('span', { text: 'Alla öltyper' });
+    const rensaStil = el('button', { type: 'button', class: 'ob-btn', text: 'Rensa' });
+    const stilRutor = stilar.map((st) => {
+      const ruta = el('input', { type: 'checkbox', value: st });
+      ruta.addEventListener('change', () => {
+        if (ruta.checked) valdaStilar.add(st); else valdaStilar.delete(st);
+        stilAndrad();
+      });
+      return el('label', { class: 'ob-multi-rad' }, ruta, ` ${st} `, el('span', { class: 'ob-muted', text: `(${antalPerStil.get(st)})` }));
+    });
+    const selStil = el('details', { class: 'ob-multi' },
+      el('summary', { class: 'ob-select', 'aria-label': 'Öltyp' }, stilEtikett),
+      el('div', { class: 'ob-multi-lista' }, el('div', { class: 'ob-multi-topp' }, rensaStil), ...stilRutor));
+    function stilAndrad() {
+      const v = [...valdaStilar];
+      stilEtikett.textContent = !v.length ? 'Alla öltyper' : v.length <= 2 ? v.join(', ') : `${v.length} öltyper`;
+      visas = STEG; rita();
+    }
+    rensaStil.addEventListener('click', () => { valdaStilar.clear(); stilRutor.forEach((l) => { l.querySelector('input').checked = false; }); stilAndrad(); });
+    document.addEventListener('click', (e) => { if (selStil.open && !selStil.contains(e.target)) selStil.open = false; });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && selStil.open) { selStil.open = false; selStil.querySelector('summary').focus(); } });
     const sok = el('input', { class: 'ob-search', type: 'search', placeholder: 'Sök öl eller bryggeri', 'aria-label': 'Sök öl eller bryggeri' });
     const antal = el('span', { class: 'ob-count' });
     // Sortering: klick på rubrik sorterar, klick igen vänder. Text stigande först, siffror fallande först.
@@ -102,7 +124,7 @@
       const q = sok.value.trim().toLowerCase();
       return forslag.filter((r) =>
         (!selVar.value || (selVar.value === '*' ? r.finns_pa : (r.finns_pa || '').split(', ').includes(selVar.value))) &&
-        (!selStil.value || r.stilfamilj === selStil.value) &&
+        (!valdaStilar.size || valdaStilar.has(r.stilfamilj)) &&
         (!q || `${r.namn} ${r.bryggeri || ''}`.toLowerCase().includes(q)));
     }
     function rita() {
@@ -125,7 +147,7 @@
       }));
       mer.hidden = rader.length <= visas;
     }
-    [selVar, selStil].forEach((s) => s.addEventListener('change', () => { visas = STEG; rita(); }));
+    selVar.addEventListener('change', () => { visas = STEG; rita(); });
     sok.addEventListener('input', () => { visas = STEG; rita(); });
     mer.addEventListener('click', () => { visas += STEG; rita(); });
 

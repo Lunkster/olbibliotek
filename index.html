@@ -118,6 +118,15 @@ body { padding:18px; }
 #dash-root .ob-tabs button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
 #dash-root .ob-forslag .ob-tablewrap { max-height: none; }
 #dash-root .ob-forslag td { vertical-align: top; }
+#dash-root .ob-multi { position: relative; flex: 1 1 11rem; min-width: 0; }
+#dash-root .ob-multi summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#dash-root .ob-multi summary::-webkit-details-marker { display: none; }
+#dash-root .ob-multi summary::after { content: "▾"; color: var(--color-fg-muted); }
+#dash-root .ob-multi-lista { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; min-width: 100%; max-height: 22rem; overflow: auto; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: 6px; }
+#dash-root .ob-multi-topp { display: flex; justify-content: flex-end; padding: 2px 4px 6px; border-bottom: 1px solid var(--color-border-line); margin-bottom: 4px; }
+#dash-root .ob-multi-rad { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 6px; font-size: var(--cds-font-size-caption); cursor: pointer; white-space: nowrap; }
+#dash-root .ob-multi-rad:hover { background: var(--color-bg); }
+#dash-root .ob-multi-rad input { accent-color: var(--ob-amber); margin: 0; }
 #dash-root .ob-forslag th[aria-sort="ascending"] button::after { content: " ▲"; font-size: 9px; }
 #dash-root .ob-forslag th[aria-sort="descending"] button::after { content: " ▼"; font-size: 9px; }
 #dash-root .ob-why { font-size: 11.5px; color: var(--color-fg-muted); margin-top: 2px; max-width: 46ch; }
