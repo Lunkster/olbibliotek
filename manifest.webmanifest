@@ -1,0 +1,22 @@
+{
+  "name": "Ölbiblioteket",
+  "short_name": "Ölbibliotek",
+  "description": "Henriks öl: statistik från Untappd och iglaset, och förslag på öl att testa.",
+  "lang": "sv",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "background_color": "#FAF6EF",
+  "theme_color": "#C8741A",
+  "icons": [
+    { "src": "ikoner/ikon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "ikoner/ikon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "ikoner/ikon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "ikoner/ikon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Borde testa", "short_name": "Förslag", "url": "./#flik=forslag", "icons": [{ "src": "ikoner/ikon-192.png", "sizes": "192x192" }] },
+    { "name": "Statistik", "url": "./", "icons": [{ "src": "ikoner/ikon-192.png", "sizes": "192x192" }] }
+  ]
+}
