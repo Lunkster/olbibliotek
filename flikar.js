@@ -62,6 +62,7 @@
     'Russia': 'Ryssland', 'Colombia': 'Colombia', 'Lebanon': 'Libanon', 'Latvia': 'Lettland', 'Switzerland': 'Schweiz',
     'Hungary': 'Ungern', 'China': 'Kina', 'India': 'Indien', 'Argentina': 'Argentina', 'Chile': 'Chile', 'Northern Ireland': 'Nordirland',
   };
+  window.OLB_LAND_SV = SV;  // används av topplistans landsfilter
   const nf0 = new Intl.NumberFormat('sv-SE');
   const nf2 = new Intl.NumberFormat('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   function el(tag, attrs = {}, ...barn) {
@@ -98,7 +99,7 @@
     });
     const sec = el('section', { class: 'ob-card ob-lander', id: 'lander-kort' },
       el('h2', { text: 'Länder' }),
-      el('p', { class: 'ob-note', text: 'Bryggeriets land för dina check-ins, med snittbetyg och ditt högst betygsatta öl därifrån. Klicka på en rubrik för att sortera.' }),
+      el('p', { class: 'ob-note', text: 'Bryggeriets land för dina check-ins, med snittbetyg och ditt högst betygsatta öl därifrån. Klicka på ett land för att se ölen i topplistan, eller på en rubrik för att sortera.' }),
       el('div', { class: 'ob-tablewrap' }, el('table', { class: 'ob-table' }, el('thead', {}, el('tr', {}, ...ths)), tbody)));
     const topplista = ob.querySelector('#topplista');
     ob.insertBefore(sec, topplista);
@@ -106,7 +107,7 @@
     function rita() {
       const d = window.dash.data('lander');
       if (d.status !== 'ok') { tbody.replaceChildren(el('tr', {}, el('td', { colspan: '6', class: 'ob-muted', text: 'Ingen landsdata än – kommer med nästa nattliga uppdatering.' }))); return; }
-      const rader = d.data.map((r) => ({ ...r, land: SV[r.land] || r.land }));
+      const rader = d.data.map((r) => ({ ...r, landKod: r.land, land: SV[r.land] || r.land }));
       const max = Math.max(1, ...rader.map((r) => r.checkins));
       rader.sort((a, b) => {
         const k = KOL.find((x) => x.k === sort.k);
@@ -116,7 +117,11 @@
         return sort.dir === 'asc' ? diff : -diff;
       });
       tbody.replaceChildren(...rader.map((r) => el('tr', {},
-        el('td', { text: r.land }),
+        el('td', {}, (() => {
+          const b = el('button', { type: 'button', class: 'ob-landknapp', text: r.land, title: `Visa öl från ${r.land} i topplistan` });
+          b.addEventListener('click', () => window.visaITopplista && window.visaITopplista({ land: r.landKod }));
+          return b;
+        })()),
         el('td', { class: 'num' }, el('div', { class: 'ob-landrad' },
           el('span', { class: 'ob-landstapel', style: `width:${Math.max(2, (r.checkins / max) * 100)}%` }),
           el('span', { text: nf0.format(r.checkins) }))),

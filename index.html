@@ -138,6 +138,11 @@ body { padding:18px; }
 #dash-root .ob-badge { display: inline-block; font-size: 10.5px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--ob-hop) 22%, var(--color-panel)); color: var(--color-fg); vertical-align: 1px; }
 #dash-root .ob-forslag a { color: inherit; text-decoration-color: color-mix(in srgb, var(--ob-amber) 70%, transparent); text-underline-offset: 2px; }
 
+/* Klickbara rader i diagram */
+#dash-root .ob-klickbar { cursor: pointer; }
+#dash-root .ob-klickbar:hover, #dash-root .ob-klickbar:focus-visible { fill: color-mix(in srgb, var(--ob-gold) 14%, transparent); outline: none; }
+#dash-root .ob-landknapp { all: unset; cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ob-amber) 70%, transparent); text-underline-offset: 2px; }
+#dash-root .ob-landknapp:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 /* Flikar med ikoner */
 #dash-root .ob-tabs-ikon { overflow-x: auto; scrollbar-width: thin; }
 #dash-root .ob-tabs-ikon button { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; padding: 8px 14px; }
@@ -241,10 +246,12 @@ body { padding:18px; }
 
   <section class="ob-card" id="topplista">
     <h2>Topplista öl</h2>
-    <p class="ob-note">Alla öl du betygsatt, efter ditt snittbetyg. Vid lika betyg går öl du druckit fler gånger först. Klicka på ett öl för att öppna det på Untappd.</p>
+    <p class="ob-note">Alla öl du betygsatt, efter ditt snittbetyg. Vid lika betyg går öl du druckit fler gånger först. Klicka på ett öl för att öppna det på Untappd. Klick på en ölstil, humlesort, ett bryggeri eller land på andra flikar leder hit med filtret satt.</p>
     <div class="ob-tools">
       <select class="ob-select" id="filter-stil" aria-label="Öltyp" data-source="ol_topp"></select>
       <select class="ob-select" id="filter-bryggeri" aria-label="Bryggeri" data-source="ol_topp"></select>
+      <select class="ob-select" id="filter-land" aria-label="Land" data-source="ol_topp"></select>
+      <select class="ob-select" id="filter-humle" aria-label="Humle" data-source="ol_topp"></select>
       <button type="button" class="ob-btn" id="filter-rensa" hidden>Rensa filter</button>
       <span class="ob-count" id="topp-antal"></span>
     </div>
@@ -492,8 +499,11 @@ function drawStyles() {
   const tip = tooltip(el.closest('.ob-card'));
   const g = svg.append('g').selectAll('g').data(rows).join('g').attr('transform', (r, i) => `translate(0,${top + i * rowH + rowH / 2})`);
   g.append('rect').attr('x', 0).attr('y', -rowH / 2).attr('width', W).attr('height', rowH).attr('fill', 'transparent')
-    .on('pointermove', (e, r) => tip.show(e, [r.stil, `Ditt snitt ${f2(r.du)}`, `Untappd globalt ${f2(r.global)}`, `${f0(r.n)} check-ins`]))
-    .on('pointerleave', () => tip.hide());
+    .on('pointermove', (e, r) => tip.show(e, [r.stil, `Ditt snitt ${f2(r.du)}`, `Untappd globalt ${f2(r.global)}`, `${f0(r.n)} check-ins`, 'Klicka för att se ölen']))
+    .on('pointerleave', () => tip.hide())
+    .attr('class', 'ob-klickbar').attr('tabindex', 0).attr('role', 'button').attr('aria-label', (r) => `Visa öl i stilen ${r.stil}`)
+    .on('click', (e, r) => { tip.hide(); visaITopplista({ stil: r.stil }); })
+    .on('keydown', (e, r) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); visaITopplista({ stil: r.stil }); } });
   g.append('text').attr('x', labelW).attr('dy', '0.32em').attr('text-anchor', 'end').attr('font-size', 12).attr('fill', 'var(--color-fg)').attr('pointer-events', 'none')
     .text((r) => r.stil);
   g.filter((r) => r.global != null).append('line').attr('x1', (r) => x(r.global)).attr('x2', (r) => x(r.du)).attr('stroke', 'var(--color-border-line)').attr('stroke-width', 2).attr('pointer-events', 'none');
@@ -523,8 +533,11 @@ function drawHops() {
   const tip = tooltip(el.closest('.ob-card'));
   const g = svg.append('g').selectAll('g').data(rows).join('g').attr('transform', (r, i) => `translate(0,${top + i * rowH + rowH / 2})`);
   g.append('rect').attr('x', 0).attr('y', -rowH / 2).attr('width', W).attr('height', rowH).attr('fill', 'transparent')
-    .on('pointermove', (e, r) => tip.show(e, [`${r.humle} (${r.ursprung || '–'})`, `Snittbetyg ${f2(r.snitt)} (${fSigned(r.diff)})`, `${f0(r.n)} check-ins av ${f0(r.ol)} öl`]))
-    .on('pointerleave', () => tip.hide());
+    .on('pointermove', (e, r) => tip.show(e, [`${r.humle} (${r.ursprung || '–'})`, `Snittbetyg ${f2(r.snitt)} (${fSigned(r.diff)})`, `${f0(r.n)} check-ins av ${f0(r.ol)} öl`, 'Klicka för att se ölen']))
+    .on('pointerleave', () => tip.hide())
+    .attr('class', 'ob-klickbar').attr('tabindex', 0).attr('role', 'button').attr('aria-label', (r) => `Visa öl med humlen ${r.humle}`)
+    .on('click', (e, r) => { tip.hide(); visaITopplista({ humle: r.humle }); })
+    .on('keydown', (e, r) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); visaITopplista({ humle: r.humle }); } });
   g.append('text').attr('x', labelW).attr('dy', '0.32em').attr('text-anchor', 'end').attr('font-size', 12).attr('fill', 'var(--color-fg)').attr('pointer-events', 'none')
     .text((r) => r.humle);
   g.append('rect').attr('pointer-events', 'none')
@@ -593,21 +606,31 @@ function drawBreweries() {
   }));
 }
 
-// Topplista med filter på öltyp och bryggeri (filtreras i sidan, alla öl laddas en gång)
-const topState = { stil: '', bryggeri: '' };
-const selStil = document.getElementById('filter-stil');
-const selBr = document.getElementById('filter-bryggeri');
+// Topplista med filter på öltyp, bryggeri, land och humle (filtreras i sidan, alla öl laddas en gång)
+const landSv = (l) => (window.OLB_LAND_SV && window.OLB_LAND_SV[l]) || l;
+const humleAv = (r) => (r.humle ? String(r.humle).split('|') : []);
+const TOPPFILTER = [
+  { key: 'stil', sel: 'filter-stil', alla: 'Alla öltyper', varden: (r) => [r.stilfamilj], etikett: (k) => k },
+  { key: 'bryggeri', sel: 'filter-bryggeri', alla: 'Alla bryggerier', varden: (r) => [r.bryggeri], etikett: (k) => k },
+  { key: 'land', sel: 'filter-land', alla: 'Alla länder', varden: (r) => [r.land], etikett: landSv },
+  { key: 'humle', sel: 'filter-humle', alla: 'All humle', varden: humleAv, etikett: (k) => k },
+];
+const topState = { stil: '', bryggeri: '', land: '', humle: '' };
+TOPPFILTER.forEach((f) => { f.el = document.getElementById(f.sel); f.el.addEventListener('change', () => { topState[f.key] = f.el.value; drawTop(); }); });
 const btnRensa = document.getElementById('filter-rensa');
-selStil.addEventListener('change', () => { topState.stil = selStil.value; drawTop(); });
-selBr.addEventListener('change', () => { topState.bryggeri = selBr.value; drawTop(); });
-btnRensa.addEventListener('click', () => { topState.stil = ''; topState.bryggeri = ''; drawTop(); });
-function showBrewery(name) {
-  topState.bryggeri = name; topState.stil = '';
+const nollstall = () => TOPPFILTER.forEach((f) => { topState[f.key] = ''; });
+btnRensa.addEventListener('click', () => { nollstall(); drawTop(); });
+const traffar = (r, utom) => TOPPFILTER.every((f) => f.key === utom || !topState[f.key] || f.varden(r).includes(topState[f.key]));
+// Visa topplistan filtrerad på ett värde, t.ex. visaITopplista({ humle: 'Citra' }) – används av diagram och tabeller
+function visaITopplista(val) {
+  nollstall(); Object.assign(topState, val);
   drawTop();
-  const card = document.getElementById('topplista');
-  card.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   dash.setLink('topplista');
+  const card = document.getElementById('topplista');
+  requestAnimationFrame(() => card.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
 }
+window.visaITopplista = visaITopplista;
+function showBrewery(name) { visaITopplista({ bryggeri: name }); }
 function fillSelect(sel, allLabel, values, current) {
   const opts = [new Option(allLabel, '')].concat(values.map((v) => new Option(v.label, v.value)));
   sel.replaceChildren(...opts);
@@ -618,22 +641,24 @@ function drawTop() {
   const table = document.getElementById('tabell-topp');
   const tbody = table.querySelector('tbody');
   const d = dash.data('ol_topp');
-  btnRensa.hidden = !(topState.stil || topState.bryggeri);
+  btnRensa.hidden = !TOPPFILTER.some((f) => topState[f.key]);
   if (d.status !== 'ok') {
     const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 8;
     if (d.status === 'loading') { td.className = 'dash-skeleton'; td.textContent = '—'; } else { const f = document.createElement('div'); f.className = 'ob-fail'; f.textContent = 'Failed to load'; td.appendChild(f); }
     tr.appendChild(td); tbody.replaceChildren(tr); document.getElementById('topp-antal').textContent = ''; return;
   }
   const all = d.data;
-  // Valen räknas på de öl som det andra filtret släpper igenom
-  const forStil = all.filter((r) => !topState.bryggeri || r.bryggeri === topState.bryggeri);
-  const forBr = all.filter((r) => !topState.stil || r.stilfamilj === topState.stil);
-  const countBy = (rows, key) => d3.rollups(rows, (v) => v.length, (r) => r[key]).filter(([k]) => k).sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'sv'));
-  fillSelect(selStil, 'Alla öltyper', countBy(forStil, 'stilfamilj').map(([k, n]) => ({ value: k, label: `${k} (${n})` })), topState.stil);
-  fillSelect(selBr, 'Alla bryggerier', countBy(forBr, 'bryggeri').map(([k, n]) => ({ value: k, label: `${k} (${n})` })), topState.bryggeri);
-  topState.stil = selStil.value; topState.bryggeri = selBr.value;
-  btnRensa.hidden = !(topState.stil || topState.bryggeri);
-  const rows = all.filter((r) => (!topState.stil || r.stilfamilj === topState.stil) && (!topState.bryggeri || r.bryggeri === topState.bryggeri));
+  // Varje filters val räknas på de öl som de andra filtren släpper igenom
+  for (const f of TOPPFILTER) {
+    const antal = new Map();
+    for (const r of all) if (traffar(r, f.key)) for (const v of f.varden(r)) if (v) antal.set(v, (antal.get(v) || 0) + 1);
+    const lista = [...antal].map(([k, n]) => ({ value: k, label: `${f.etikett(k)} (${n})` })).sort((a, b) => a.label.localeCompare(b.label, 'sv'));
+    fillSelect(f.el, f.alla, lista, topState[f.key]);
+    f.el.hidden = f.key === 'humle' && !lista.length && !topState.humle;
+  }
+  TOPPFILTER.forEach((f) => { topState[f.key] = f.el.value; });
+  btnRensa.hidden = !TOPPFILTER.some((f) => topState[f.key]);
+  const rows = all.filter((r) => traffar(r));
   const shown = rows.slice(0, 100);
   document.getElementById('topp-antal').textContent = rows.length > shown.length ? `Visar ${f0(shown.length)} av ${f0(rows.length)}` : `${f0(rows.length)} öl`;
   tbody.replaceChildren(...shown.map((r, i) => {
