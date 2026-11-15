@@ -138,6 +138,25 @@ body { padding:18px; }
 #dash-root .ob-badge { display: inline-block; font-size: 10.5px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--ob-hop) 22%, var(--color-panel)); color: var(--color-fg); vertical-align: 1px; }
 #dash-root .ob-forslag a { color: inherit; text-decoration-color: color-mix(in srgb, var(--ob-amber) 70%, transparent); text-underline-offset: 2px; }
 
+/* Stilguide */
+#dash-root .ob-stilguide { display: flex; flex-direction: column; }
+#dash-root .ob-stilrad { border-bottom: 1px solid var(--color-border-line); }
+#dash-root .ob-stilrad summary { cursor: pointer; display: grid; grid-template-columns: minmax(10rem, 1.2fr) 1fr auto; gap: 12px; align-items: baseline; padding: 8px 4px; font-size: var(--cds-font-size-caption); list-style: none; }
+#dash-root .ob-stilrad summary::-webkit-details-marker { display: none; }
+#dash-root .ob-stilrad summary::before { content: "▸"; color: var(--color-fg-muted); margin-right: 6px; display: inline-block; transition: transform var(--cds-dur-slow); }
+#dash-root .ob-stilrad[open] summary::before { transform: rotate(90deg); }
+#dash-root .ob-stilrad summary:hover { background: color-mix(in srgb, var(--ob-gold) 10%, transparent); }
+#dash-root .ob-stilrad summary { grid-template-columns: auto minmax(9rem, 1.2fr) 1fr auto; }
+#dash-root .ob-stilnamn { font-weight: 600; }
+#dash-root .ob-stilsiffror { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#dash-root .ob-stilkropp { padding: 4px 8px 14px 22px; font-size: var(--cds-font-size-caption); line-height: 1.5; max-width: 80ch; }
+#dash-root .ob-stilkropp p { margin: 6px 0; }
+#dash-root .ob-sinnen, #dash-root .ob-varden { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 8px 0; }
+#dash-root .ob-sinnen dt, #dash-root .ob-varden dt { font-weight: 600; color: var(--color-fg-muted); }
+#dash-root .ob-sinnen dd, #dash-root .ob-varden dd { margin: 0; }
+#dash-root .ob-srm { display: inline-block; width: 64px; height: 10px; border-radius: 5px; vertical-align: middle; border: 1px solid var(--color-border-line); }
+#dash-root #stilguide-kort a { color: inherit; text-decoration-color: color-mix(in srgb, var(--ob-amber) 70%, transparent); text-underline-offset: 2px; }
+@media (max-width: 640px) { #dash-root .ob-stilguidekort { display: none; } #dash-root .ob-stilrad summary { grid-template-columns: auto 1fr auto; } }
 /* Aromer du gillar */
 #dash-root .ob-aromlista { display: flex; flex-direction: column; gap: 2px; }
 #dash-root .ob-aromrad { all: unset; cursor: pointer; display: grid; grid-template-columns: minmax(6.5rem, 9rem) 1fr 3.4rem minmax(5.5rem, auto); align-items: center; gap: 10px; padding: 5px 6px; border-radius: 6px; font-size: var(--cds-font-size-caption); }
@@ -269,6 +288,7 @@ body { padding:18px; }
     <p class="ob-note">Alla öl du betygsatt, efter ditt snittbetyg. Vid lika betyg går öl du druckit fler gånger först. Klicka på ett öl för att öppna det på Untappd. Klick på en ölstil, humlesort, ett bryggeri eller land på andra flikar leder hit med filtret satt.</p>
     <div class="ob-tools">
       <select class="ob-select" id="filter-stil" aria-label="Öltyp" data-source="ol_topp"></select>
+      <select class="ob-select" id="filter-understil" aria-label="Stil" data-source="ol_topp"></select>
       <select class="ob-select" id="filter-bryggeri" aria-label="Bryggeri" data-source="ol_topp"></select>
       <select class="ob-select" id="filter-land" aria-label="Land" data-source="ol_topp"></select>
       <select class="ob-select" id="filter-humle" aria-label="Humle" data-source="ol_topp"></select>
@@ -316,6 +336,7 @@ body { padding:18px; }
 </div>
 <script src="forslag.js"></script>
 <script src="humle.js"></script>
+<script src="stilguide.js"></script>
 <script src="flikar.js"></script>
 <script src="shim.js"></script>
 <script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
@@ -635,12 +656,13 @@ const landSv = (l) => (window.OLB_LAND_SV && window.OLB_LAND_SV[l]) || l;
 const humleAv = (r) => (r.humle ? String(r.humle).split('|') : []);
 const TOPPFILTER = [
   { key: 'stil', sel: 'filter-stil', alla: 'Alla öltyper', varden: (r) => [r.stilfamilj], etikett: (k) => k },
+  { key: 'understil', sel: 'filter-understil', alla: 'Alla stilar', varden: (r) => [r.stil], etikett: (k) => k },
   { key: 'bryggeri', sel: 'filter-bryggeri', alla: 'Alla bryggerier', varden: (r) => [r.bryggeri], etikett: (k) => k },
   { key: 'land', sel: 'filter-land', alla: 'Alla länder', varden: (r) => [r.land], etikett: landSv },
   { key: 'humle', sel: 'filter-humle', alla: 'All humle', varden: humleAv, etikett: (k) => k },
   { key: 'arom', sel: 'filter-arom', alla: 'Alla aromer', varden: (r) => (r.aromer ? String(r.aromer).split('|') : []), etikett: (k) => k },
 ];
-const topState = { stil: '', bryggeri: '', land: '', humle: '', arom: '' };
+const topState = { stil: '', understil: '', bryggeri: '', land: '', humle: '', arom: '' };
 TOPPFILTER.forEach((f) => { f.el = document.getElementById(f.sel); f.el.addEventListener('change', () => { topState[f.key] = f.el.value; drawTop(); }); });
 const btnRensa = document.getElementById('filter-rensa');
 const nollstall = () => TOPPFILTER.forEach((f) => { topState[f.key] = ''; });

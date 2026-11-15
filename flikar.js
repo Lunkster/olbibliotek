@@ -42,7 +42,7 @@
 
   const FLIKAR = [
     { id: 'oversikt', namn: 'Översikt', delar: ['nyckeltal', 'per-ar', 'fordelning', 'senaste-kort'] },
-    { id: 'stilar', namn: 'Ölstilar', delar: ['stilar-kort'] },
+    { id: 'stilar', namn: 'Ölstilar', delar: ['stilar-kort', 'stilguide-kort'] },
     { id: 'humle', namn: 'Humle', delar: ['humle-kort', 'aromer-kort', 'humleprofil-kort'] },
     { id: 'bryggerier', namn: 'Bryggerier', delar: ['bryggerier-kort'] },
     { id: 'lander', namn: 'Länder', delar: ['lander-kort'] },
@@ -170,6 +170,7 @@
     const head = ob.querySelector('.ob-head');
     const seg = head.querySelector('.ob-seg');
     byggLander(ob);
+    if (window.__byggStilguide) window.__byggStilguide(ob);
     if (window.__byggHumle) window.__byggHumle(ob);
 
     const knappar = FLIKAR.map((f) => {

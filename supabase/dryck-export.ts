@@ -1,5 +1,5 @@
 // Exporterar alla dashboard-dataset (alla/untappd/iglaset) som en JSON. Anropas av GitHub Action varje natt.
-// GET/POST med header x-import-token (Vault: dryck_import_token). Innehåller även ölförslag och bevakade venues.
+// GET/POST med header x-import-token (Vault: dryck_import_token). Innehåller även ölförslag, bevakade venues och stilguiden.
 import postgres from "npm:postgres@3.4.4";
 const sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { prepare: false, max: 1 });
 const Q: Record<string, string> = {
@@ -13,7 +13,8 @@ const Q: Record<string, string> = {
  "ol_topp": "SELECT ol_id::text AS id, ol, bryggeri, stilfamilj, stil, max(bryggeri_land) AS land, (SELECT string_agg(DISTINCT h.namn, '|' ORDER BY h.namn) FROM dryck.ol_humle oh JOIN dryck.humle h ON h.id = oh.humle_id WHERE oh.ol_id = v_checkin.ol_id) AS humle, (SELECT string_agg(DISTINCT a, '|' ORDER BY a) FROM dryck.ol_humle oh JOIN dryck.humle h ON h.id = oh.humle_id, unnest(h.aromer) AS a WHERE oh.ol_id = v_checkin.ol_id) AS aromer, count(*)::int AS checkins, round(avg(betyg), 2)::float AS mitt_betyg, max(global_betyg)::float AS globalt, max(abv)::float AS abv, to_char(max(tidpunkt) AT TIME ZONE 'Europe/Stockholm', 'YYYY-MM-DD') AS senast, 'https://untappd.com/beer/' || ol_id AS url FROM dryck.v_checkin WHERE betyg IS NOT NULL AND ol_id IS NOT NULL AND (COALESCE($1::text, 'alla') = 'alla' OR ursprung = $1::text) GROUP BY ol_id, ol, bryggeri, stilfamilj, stil ORDER BY mitt_betyg DESC, checkins DESC, globalt DESC NULLS LAST",
  "lander": "WITH c AS (SELECT * FROM dryck.v_checkin WHERE bryggeri_land IS NOT NULL AND (COALESCE($1::text, 'alla') = 'alla' OR ursprung = $1::text)), per AS (SELECT bryggeri_land AS land, count(*)::int AS checkins, count(DISTINCT ol_id)::int AS unika_ol, count(DISTINCT bryggeri_id)::int AS bryggerier, round(avg(betyg), 2)::float AS snittbetyg FROM c GROUP BY 1), topp AS (SELECT DISTINCT ON (bryggeri_land) bryggeri_land AS land, ol AS basta_ol, ol_id, betyg FROM c WHERE betyg IS NOT NULL ORDER BY bryggeri_land, betyg DESC, tidpunkt DESC) SELECT p.*, t.basta_ol, t.betyg::float AS basta, 'https://untappd.com/beer/' || t.ol_id AS basta_ol_url FROM per p LEFT JOIN topp t USING (land) ORDER BY p.checkins DESC",
  "humleprofil": "WITH c AS (SELECT * FROM dryck.v_checkin WHERE betyg IS NOT NULL AND (COALESCE($1::text, 'alla') = 'alla' OR ursprung = $1::text)), s AS (SELECT avg(betyg) AS a FROM c) SELECT h.namn AS humle, h.ursprung, h.typ, h.alfa_min::float AS alfa_min, h.alfa_max::float AS alfa_max, array_to_string(h.aromer, ', ') AS aromer, h.ersattning, h.arom_en, count(DISTINCT oh.ol_id)::int AS antal_ol, count(DISTINCT c.id)::int AS checkins, round(avg(c.betyg), 2)::float AS snittbetyg, round(avg(c.betyg) - (SELECT a FROM s), 2)::float AS diff FROM dryck.humle h JOIN dryck.ol_humle oh ON oh.humle_id = h.id JOIN c ON c.ol_id = oh.ol_id GROUP BY h.id ORDER BY checkins DESC",
- "aromer": "WITH c AS (SELECT * FROM dryck.v_checkin WHERE betyg IS NOT NULL AND (COALESCE($1::text, 'alla') = 'alla' OR ursprung = $1::text)), x AS (SELECT DISTINCT c.id, c.betyg, unnest(h.aromer) AS arom FROM c JOIN dryck.ol_humle oh ON oh.ol_id = c.ol_id JOIN dryck.humle h ON h.id = oh.humle_id WHERE h.aromer IS NOT NULL), b AS (SELECT avg(betyg) AS b FROM (SELECT DISTINCT id, betyg FROM x) y) SELECT arom, count(*)::int AS checkins, round(avg(betyg), 2)::float AS snittbetyg, round(avg(betyg) - (SELECT b FROM b), 2)::float AS diff, round((SELECT b FROM b), 2)::float AS bas FROM x GROUP BY arom ORDER BY diff DESC"
+ "aromer": "WITH c AS (SELECT * FROM dryck.v_checkin WHERE betyg IS NOT NULL AND (COALESCE($1::text, 'alla') = 'alla' OR ursprung = $1::text)), x AS (SELECT DISTINCT c.id, c.betyg, unnest(h.aromer) AS arom FROM c JOIN dryck.ol_humle oh ON oh.ol_id = c.ol_id JOIN dryck.humle h ON h.id = oh.humle_id WHERE h.aromer IS NOT NULL), b AS (SELECT avg(betyg) AS b FROM (SELECT DISTINCT id, betyg FROM x) y) SELECT arom, count(*)::int AS checkins, round(avg(betyg), 2)::float AS snittbetyg, round(avg(betyg) - (SELECT b FROM b), 2)::float AS diff, round((SELECT b FROM b), 2)::float AS bas FROM x GROUP BY arom ORDER BY diff DESC",
+ "stilar_detalj": "SELECT c.stil, max(c.stilfamilj) AS stilfamilj, count(*)::int AS checkins, count(DISTINCT c.ol_id)::int AS unika_ol, round(avg(c.betyg), 2)::float AS snittbetyg, round(avg(c.abv), 1)::float AS ditt_abv, max(k.stil_id) AS stil_id FROM dryck.v_checkin c LEFT JOIN dryck.stil_koppling k ON k.untappd_stil = c.stil WHERE c.stil IS NOT NULL AND (COALESCE($1::text, 'alla') = 'alla' OR c.ursprung = $1::text) GROUP BY c.stil ORDER BY checkins DESC"
 };
 Deno.serve(async (req) => {
   try {
@@ -36,7 +37,11 @@ Deno.serve(async (req) => {
              count(m.ol_id) filter (where m.senast_sedd >= v.meny_hamtad)::int ol
       from dryck.venue v left join dryck.venue_meny m on m.venue_id = v.id
       where v.aktiv group by v.id order by v.namn`;
-    return Response.json({ skapad: new Date().toISOString(), data: ut, forslag, venuer });
+    // Stilguide (Catalog.beer, CC BY 4.0) – bara stilar som är kopplade till dina Untappd-stilar
+    const stilguide = await sql`
+      select g.id, g.namn, g.familj_namn, g.beskrivning, g.arom, g.smak, g.utseende, g.munkansla, g.exempel, g.specs, g.kalla
+      from dryck.stilguide g where g.id in (select stil_id from dryck.stil_koppling)`;
+    return Response.json({ skapad: new Date().toISOString(), data: ut, forslag, venuer, stilguide });
   } catch (e) {
     return Response.json({ error: String((e as Error)?.message ?? e) }, { status: 500 });
   }
