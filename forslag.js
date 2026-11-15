@@ -19,6 +19,9 @@
     for (const b of barn) if (b !== null && b !== undefined) e.append(b);
     return e;
   }
+  // Sök i Systembolagets ölsortiment (Henrik: /sortiment/ol/?q= ger bättre träffar än det allmänna söket)
+  const sbLank = (namn) => 'https://www.systembolaget.se/sortiment/ol/?q=' +
+    encodeURIComponent(String(namn || '').replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim());
   const lank = (href, text, cls) => el('a', { href, target: '_blank', rel: 'noopener', class: cls, text });
 
   window.__startForslag = ({ forslag = [], venuer = [] } = {}) => {
@@ -154,7 +157,7 @@
           el('td', { class: 'num', text: r.globalt == null ? '–' : nf2.format(r.globalt) }),
           el('td', { class: 'num ob-hide-narrow ob-muted', text: r.antal_betyg == null ? '–' : nf0.format(r.antal_betyg) }),
           el('td', { class: 'ob-hide-narrow ob-muted', text: r.finns_pa || '' }),
-          el('td', {}, lank(r.systembolaget, 'Sök', 'ob-link')));
+          el('td', {}, lank(sbLank(r.namn), 'Sök', 'ob-link')));
       }));
       mer.hidden = rader.length <= visas;
     }
