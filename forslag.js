@@ -34,38 +34,46 @@
     const venueText = venuer.map((v) => v.ol
       ? `${v.namn} (${nf0.format(v.ol)} öl, meny ${v.uppdaterad || 'okänt datum'})`
       : `${v.namn} (ingen meny i Untappd)`);
-    const selVar = el('select', { class: 'ob-select', 'aria-label': 'Var' },
-      el('option', { value: '', text: 'Alla förslag' }),
-      el('option', { value: '*', text: 'Finns på något av dina ställen' }),
-      ...venuer.filter((v) => v.ol).map((v) => el('option', { value: v.namn, text: `Finns på ${v.namn}` })));
-    const stilar = [...new Set(forslag.map((r) => r.stilfamilj).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'sv'));
-    // Öltyp: flerval med kryssrutor. Inget valt = alla.
-    const antalPerStil = forslag.reduce((m, r) => (r.stilfamilj ? m.set(r.stilfamilj, (m.get(r.stilfamilj) || 0) + 1) : m), new Map());
-    const valdaStilar = new Set();
-    const stilEtikett = el('span', { text: 'Alla öltyper' });
-    const rensaStil = el('button', { type: 'button', class: 'ob-btn', text: 'Rensa' });
-    const stilRutor = stilar.map((st) => {
-      const ruta = el('input', { type: 'checkbox', value: st });
-      ruta.addEventListener('change', () => {
-        if (ruta.checked) valdaStilar.add(st); else valdaStilar.delete(st);
-        stilAndrad();
+    // Flerval med kryssrutor och räknare (används för ställen och öltyper). Inget valt = alla.
+    function flerval(etikettAlla, plural, alternativ, aria) {
+      const valda = new Set();
+      const etikett = el('span', { text: etikettAlla });
+      const rensa = el('button', { type: 'button', class: 'ob-btn', text: 'Rensa' });
+      const rader = alternativ.map((v) => {
+        const ruta = el('input', { type: 'checkbox', value: v });
+        ruta.addEventListener('change', () => { if (ruta.checked) valda.add(v); else valda.delete(v); andrad(); });
+        const tal = el('span', { class: 'ob-muted' });
+        const rad = el('label', { class: 'ob-multi-rad' }, ruta, ` ${v} `, tal);
+        rad._v = v; rad._ruta = ruta; rad._tal = tal;
+        return rad;
       });
-      const tal = el('span', { class: 'ob-muted', text: `(${antalPerStil.get(st)})` });
-      const rad = el('label', { class: 'ob-multi-rad' }, ruta, ` ${st} `, tal);
-      rad._stil = st; rad._ruta = ruta; rad._tal = tal;
-      return rad;
-    });
-    const selStil = el('details', { class: 'ob-multi' },
-      el('summary', { class: 'ob-select', 'aria-label': 'Öltyp' }, stilEtikett),
-      el('div', { class: 'ob-multi-lista' }, el('div', { class: 'ob-multi-topp' }, rensaStil), ...stilRutor));
-    function stilAndrad() {
-      const v = [...valdaStilar];
-      stilEtikett.textContent = !v.length ? 'Alla öltyper' : v.length <= 2 ? v.join(', ') : `${v.length} öltyper`;
-      visas = STEG; rita();
+      const elem = el('details', { class: 'ob-multi' },
+        el('summary', { class: 'ob-select', 'aria-label': aria }, etikett),
+        el('div', { class: 'ob-multi-lista' }, el('div', { class: 'ob-multi-topp' }, rensa), ...rader));
+      function andrad() {
+        const v = [...valda];
+        etikett.textContent = !v.length ? etikettAlla : v.length <= 2 ? v.join(', ') : `${v.length} ${plural}`;
+        visas = STEG; rita();
+      }
+      rensa.addEventListener('click', () => { valda.clear(); rader.forEach((r) => { r._ruta.checked = false; }); andrad(); });
+      document.addEventListener('click', (e) => { if (elem.open && !elem.contains(e.target)) elem.open = false; });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && elem.open) { elem.open = false; elem.querySelector('summary').focus(); } });
+      return {
+        elem, valda,
+        // Visa antal i nuvarande urval; dölj alternativ med 0 som inte är valda
+        raknaOm(antal) {
+          for (const r of rader) {
+            const n = antal.get(r._v) || 0;
+            r._tal.textContent = `(${n})`;
+            r.hidden = n === 0 && !r._ruta.checked;
+          }
+        },
+      };
     }
-    rensaStil.addEventListener('click', () => { valdaStilar.clear(); stilRutor.forEach((l) => { l.querySelector('input').checked = false; }); stilAndrad(); });
-    document.addEventListener('click', (e) => { if (selStil.open && !selStil.contains(e.target)) selStil.open = false; });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && selStil.open) { selStil.open = false; selStil.querySelector('summary').focus(); } });
+    const venueFilter = flerval('Alla ställen', 'ställen', venuer.filter((v) => v.ol).map((v) => v.namn), 'Finns på');
+    const stilar = [...new Set(forslag.map((r) => r.stilfamilj).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'sv'));
+    const stilFilter = flerval('Alla öltyper', 'öltyper', stilar, 'Öltyp');
+    const pastallen = (r) => (r.finns_pa ? r.finns_pa.split(', ') : []);
     const sok = el('input', { class: 'ob-search', type: 'search', placeholder: 'Sök öl eller bryggeri', 'aria-label': 'Sök öl eller bryggeri' });
     const antal = el('span', { class: 'ob-count' });
     // Sortering: klick på rubrik sorterar, klick igen vänder. Text stigande först, siffror fallande först.
@@ -110,7 +118,7 @@
       el('p', { class: 'ob-note' }, 'Bevakade ställen: ', venueText.join(' · ') || '—'),
       el('p', { class: 'ob-note' }, 'Systembolaget delar inte längre sitt sortiment maskinellt, så ”Sök” öppnar en sökning där du ser lagret i dina butiker: ',
         ...BUTIKER.flatMap((b, i) => [i ? ', ' : '', lank(b.url, b.namn)])),
-      el('div', { class: 'ob-tools' }, selVar, selStil, sok, antal),
+      el('div', { class: 'ob-tools' }, venueFilter.elem, stilFilter.elem, sok, antal),
       el('div', { class: 'ob-tablewrap' }, el('table', { class: 'ob-table' },
         el('thead', {}, el('tr', {}, ...KOLUMNER.map(rubrik))),
         tbody)),
@@ -121,18 +129,19 @@
 
     function urval() {
       const q = sok.value.trim().toLowerCase();
-      // Allt utom öltypen – används också för antalen i öltypslistan
-      const ovriga = forslag.filter((r) =>
-        (!selVar.value || (selVar.value === '*' ? r.finns_pa : (r.finns_pa || '').split(', ').includes(selVar.value))) &&
-        (!q || `${r.namn} ${r.bryggeri || ''}`.toLowerCase().includes(q)));
-      const perStil = new Map();
-      for (const r of ovriga) if (r.stilfamilj) perStil.set(r.stilfamilj, (perStil.get(r.stilfamilj) || 0) + 1);
-      for (const rad of stilRutor) {
-        const n = perStil.get(rad._stil) || 0;
-        rad._tal.textContent = `(${n})`;
-        rad.hidden = n === 0 && !rad._ruta.checked;  // valda öltyper syns alltid, även med 0
+      const okSok = (r) => !q || `${r.namn} ${r.bryggeri || ''}`.toLowerCase().includes(q);
+      const okVenue = (r) => !venueFilter.valda.size || pastallen(r).some((v) => venueFilter.valda.has(v));
+      const okStil = (r) => !stilFilter.valda.size || stilFilter.valda.has(r.stilfamilj);
+      // Räknarna: varje filter räknas på de andra filtren (inte på sig själv)
+      const perStil = new Map(), perVenue = new Map();
+      for (const r of forslag) {
+        if (!okSok(r)) continue;
+        if (okVenue(r) && r.stilfamilj) perStil.set(r.stilfamilj, (perStil.get(r.stilfamilj) || 0) + 1);
+        if (okStil(r)) for (const v of pastallen(r)) perVenue.set(v, (perVenue.get(v) || 0) + 1);
       }
-      return ovriga.filter((r) => !valdaStilar.size || valdaStilar.has(r.stilfamilj));
+      stilFilter.raknaOm(perStil);
+      venueFilter.raknaOm(perVenue);
+      return forslag.filter((r) => okSok(r) && okVenue(r) && okStil(r));
     }
     function rita() {
       const rader = urval().sort(jamfor);
@@ -154,7 +163,6 @@
       }));
       mer.hidden = rader.length <= visas;
     }
-    selVar.addEventListener('change', () => { visas = STEG; rita(); });
     sok.addEventListener('input', () => { visas = STEG; rita(); });
     mer.addEventListener('click', () => { visas += STEG; rita(); });
 
