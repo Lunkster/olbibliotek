@@ -138,6 +138,26 @@ body { padding:18px; }
 #dash-root .ob-badge { display: inline-block; font-size: 10.5px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--ob-hop) 22%, var(--color-panel)); color: var(--color-fg); vertical-align: 1px; }
 #dash-root .ob-forslag a { color: inherit; text-decoration-color: color-mix(in srgb, var(--ob-amber) 70%, transparent); text-underline-offset: 2px; }
 
+/* Aromer du gillar */
+#dash-root .ob-aromlista { display: flex; flex-direction: column; gap: 2px; }
+#dash-root .ob-aromrad { all: unset; cursor: pointer; display: grid; grid-template-columns: minmax(6.5rem, 9rem) 1fr 3.4rem minmax(5.5rem, auto); align-items: center; gap: 10px; padding: 5px 6px; border-radius: 6px; font-size: var(--cds-font-size-caption); }
+#dash-root .ob-aromrad:hover, #dash-root .ob-aromrad:focus-visible { background: color-mix(in srgb, var(--ob-gold) 14%, transparent); }
+#dash-root .ob-aromnamn { font-weight: 600; }
+#dash-root .ob-aromaxel { position: relative; height: 12px; }
+#dash-root .ob-aromaxel::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--cds-chart-axis); }
+#dash-root .ob-aromstapel { position: absolute; top: 0; height: 12px; border-radius: 4px; }
+#dash-root .ob-aromstapel.plus { left: 50%; background: var(--ob-hop); }
+#dash-root .ob-aromstapel.minus { right: 50%; background: var(--ob-copper); opacity: .75; }
+#dash-root .ob-aromvarde { text-align: right; font-variant-numeric: tabular-nums; }
+#dash-root .ob-aromantal { text-align: right; font-variant-numeric: tabular-nums; }
+#dash-root .ob-profiler .ob-tablewrap { max-height: none; }
+#dash-root .ob-note a, #dash-root .ob-profiler a { color: inherit; text-decoration-color: color-mix(in srgb, var(--ob-amber) 70%, transparent); text-underline-offset: 2px; }
+#dash-root .ob-profiler td { vertical-align: top; }
+#dash-root .ob-profiler th[aria-sort="ascending"] button::after { content: " ▲"; font-size: 9px; }
+#dash-root .ob-profiler th[aria-sort="descending"] button::after { content: " ▼"; font-size: 9px; }
+#dash-root .ob-plus { color: var(--color-ok); }
+#dash-root .ob-minus { color: var(--color-bad); }
+@media (max-width: 640px) { #dash-root .ob-aromrad { grid-template-columns: 6rem 1fr 3rem; } #dash-root .ob-aromantal { display: none; } }
 /* Klickbara rader i diagram */
 #dash-root .ob-klickbar { cursor: pointer; }
 #dash-root .ob-klickbar:hover, #dash-root .ob-klickbar:focus-visible { fill: color-mix(in srgb, var(--ob-gold) 14%, transparent); outline: none; }
@@ -252,6 +272,7 @@ body { padding:18px; }
       <select class="ob-select" id="filter-bryggeri" aria-label="Bryggeri" data-source="ol_topp"></select>
       <select class="ob-select" id="filter-land" aria-label="Land" data-source="ol_topp"></select>
       <select class="ob-select" id="filter-humle" aria-label="Humle" data-source="ol_topp"></select>
+      <select class="ob-select" id="filter-arom" aria-label="Arom" data-source="ol_topp"></select>
       <button type="button" class="ob-btn" id="filter-rensa" hidden>Rensa filter</button>
       <span class="ob-count" id="topp-antal"></span>
     </div>
@@ -294,6 +315,7 @@ body { padding:18px; }
 
 </div>
 <script src="forslag.js"></script>
+<script src="humle.js"></script>
 <script src="flikar.js"></script>
 <script src="shim.js"></script>
 <script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
@@ -518,7 +540,7 @@ function drawHops() {
   const el = document.getElementById('chart-humle');
   const got = rowsFor(el, 'humle'); if (!got) return;
   if (!got[0].length) return emptyNote(el, 'Inga humlesorter med minst 5 check-ins i det här urvalet ännu.');
-  const rows = got[0].map((r) => ({ humle: r.humle, ursprung: r.ursprung, ol: +r.antal_ol, n: +r.checkins, snitt: +r.snittbetyg, diff: +r.diff }))
+  const rows = got[0].map((r) => ({ humle: r.humle, ursprung: r.ursprung, ol: +r.antal_ol, n: +r.checkins, snitt: +r.snittbetyg, diff: +r.diff, typ: r.typ, alfa_min: r.alfa_min, alfa_max: r.alfa_max, aromer: r.aromer, ersattning: r.ersattning }))
     .sort((a, b) => b.diff - a.diff);
   const rowH = 24, top = 24;
   const W = Math.max(260, el.clientWidth), H = top + rows.length * rowH + 4;
@@ -533,7 +555,9 @@ function drawHops() {
   const tip = tooltip(el.closest('.ob-card'));
   const g = svg.append('g').selectAll('g').data(rows).join('g').attr('transform', (r, i) => `translate(0,${top + i * rowH + rowH / 2})`);
   g.append('rect').attr('x', 0).attr('y', -rowH / 2).attr('width', W).attr('height', rowH).attr('fill', 'transparent')
-    .on('pointermove', (e, r) => tip.show(e, [`${r.humle} (${r.ursprung || '–'})`, `Snittbetyg ${f2(r.snitt)} (${fSigned(r.diff)})`, `${f0(r.n)} check-ins av ${f0(r.ol)} öl`, 'Klicka för att se ölen']))
+    .on('pointermove', (e, r) => tip.show(e, [`${r.humle} (${r.ursprung || '–'})`, `Snittbetyg ${f2(r.snitt)} (${fSigned(r.diff)})`, `${f0(r.n)} check-ins av ${f0(r.ol)} öl`,
+      ...(r.typ ? [`${(window.OLB_HUMLE && window.OLB_HUMLE.TYP[r.typ]) || r.typ} · alfa ${window.OLB_HUMLE ? window.OLB_HUMLE.alfa(r) : ''}`] : []),
+      ...(r.aromer ? [`Arom: ${r.aromer}`] : []), ...(r.ersattning ? [`Ersättare: ${r.ersattning}`] : []), 'Klicka för att se ölen']))
     .on('pointerleave', () => tip.hide())
     .attr('class', 'ob-klickbar').attr('tabindex', 0).attr('role', 'button').attr('aria-label', (r) => `Visa öl med humlen ${r.humle}`)
     .on('click', (e, r) => { tip.hide(); visaITopplista({ humle: r.humle }); })
@@ -614,8 +638,9 @@ const TOPPFILTER = [
   { key: 'bryggeri', sel: 'filter-bryggeri', alla: 'Alla bryggerier', varden: (r) => [r.bryggeri], etikett: (k) => k },
   { key: 'land', sel: 'filter-land', alla: 'Alla länder', varden: (r) => [r.land], etikett: landSv },
   { key: 'humle', sel: 'filter-humle', alla: 'All humle', varden: humleAv, etikett: (k) => k },
+  { key: 'arom', sel: 'filter-arom', alla: 'Alla aromer', varden: (r) => (r.aromer ? String(r.aromer).split('|') : []), etikett: (k) => k },
 ];
-const topState = { stil: '', bryggeri: '', land: '', humle: '' };
+const topState = { stil: '', bryggeri: '', land: '', humle: '', arom: '' };
 TOPPFILTER.forEach((f) => { f.el = document.getElementById(f.sel); f.el.addEventListener('change', () => { topState[f.key] = f.el.value; drawTop(); }); });
 const btnRensa = document.getElementById('filter-rensa');
 const nollstall = () => TOPPFILTER.forEach((f) => { topState[f.key] = ''; });
@@ -654,7 +679,7 @@ function drawTop() {
     for (const r of all) if (traffar(r, f.key)) for (const v of f.varden(r)) if (v) antal.set(v, (antal.get(v) || 0) + 1);
     const lista = [...antal].map(([k, n]) => ({ value: k, label: `${f.etikett(k)} (${n})` })).sort((a, b) => a.label.localeCompare(b.label, 'sv'));
     fillSelect(f.el, f.alla, lista, topState[f.key]);
-    f.el.hidden = f.key === 'humle' && !lista.length && !topState.humle;
+    f.el.hidden = (f.key === 'humle' || f.key === 'arom') && !lista.length && !topState[f.key];
   }
   TOPPFILTER.forEach((f) => { topState[f.key] = f.el.value; });
   btnRensa.hidden = !TOPPFILTER.some((f) => topState[f.key]);
