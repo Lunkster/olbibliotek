@@ -4,6 +4,8 @@
   const listeners = [];
   const params = { kalla: (location.hash.match(/kalla=(alla|untappd|iglaset)/) || [])[1] || 'alla' };
   const notify = () => listeners.forEach((f) => f());
+  // Adressen: #kalla=…&flik=… (fliken sätts av flikar.js)
+  const hash = () => '#kalla=' + params.kalla + (window.__flik ? '&flik=' + window.__flik : '');
   window.dash = {
     loader() {},
     data(id) {
@@ -12,8 +14,9 @@
       return rows ? { status: 'ok', data: rows } : { status: 'missing', data: null };
     },
     params: () => ({ ...params }),
-    setParams(p) { Object.assign(params, p); history.replaceState(null, '', '#kalla=' + params.kalla); notify(); },
-    setLink(id) { history.replaceState(null, '', '#kalla=' + params.kalla + (id ? '&' + id : '')); },
+    setParams(p) { Object.assign(params, p); history.replaceState(null, '', hash()); notify(); },
+    setLink() { history.replaceState(null, '', hash()); },
+    _redraw: () => notify(),
     onData(f) { listeners.push(f); },
     _load(d) { DATA = d; notify(); },
   };
@@ -41,6 +44,7 @@
       window.__start();
       window.dash._load(out.data);
       if (window.__startForslag) window.__startForslag({ forslag: out.forslag || [], venuer: out.venuer || [] });
+      if (window.__startFlikar) window.__startFlikar();
       const t = document.createElement('p');
       t.style.cssText = 'text-align:center;font-size:12px;color:var(--color-fg-muted)';
       t.textContent = 'Uppdaterad ' + out.skapad.slice(0, 16).replace('T', ' ') + ' UTC';

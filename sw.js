@@ -1,7 +1,7 @@
 // Service worker för Ölbiblioteket: gör sidan installerbar och läsbar offline.
 // Nätet först (så att nattens nya data och kod alltid används), cachen som reserv när nätet saknas.
-const CACHE = 'olb-v1';
-const GRUND = ['./', 'index.html', 'shim.js', 'forslag.js', 'd3.min.js', 'manifest.webmanifest', 'ikoner/ikon-192.png'];
+const CACHE = 'olb-v2';
+const GRUND = ['./', 'index.html', 'shim.js', 'forslag.js', 'flikar.js', 'd3.min.js', 'manifest.webmanifest', 'ikoner/ikon-192.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(GRUND)).then(() => self.skipWaiting()));

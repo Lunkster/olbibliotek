@@ -34,7 +34,7 @@ jobs:
         run: |
           mkdir -p _site
           node kryptera.mjs export.json _site/data.enc.json
-          cp -r index.html shim.js forslag.js d3.min.js manifest.webmanifest sw.js ikoner _site/
+          cp -r index.html shim.js forslag.js flikar.js d3.min.js manifest.webmanifest sw.js ikoner _site/
           rm export.json
       - uses: actions/upload-pages-artifact@v3
         with: { path: _site }

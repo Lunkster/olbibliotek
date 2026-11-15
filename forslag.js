@@ -28,13 +28,7 @@
     forslag.forEach((r, i) => { r.rang = i + 1; });
     const ob = document.querySelector('#dash-root .ob');
     const head = ob.querySelector('.ob-head');
-    const seg = head.querySelector('.ob-seg');
 
-    // Flikar
-    const knappStat = el('button', { type: 'button', role: 'tab', text: 'Statistik' });
-    const knappForslag = el('button', { type: 'button', role: 'tab', text: 'Borde testa' });
-    const nav = el('nav', { class: 'ob-tabs', role: 'tablist', 'aria-label': 'Vy' }, knappStat, knappForslag);
-    head.after(nav);
 
     // Sektion
     const venueText = venuer.map((v) => v.ol
@@ -123,7 +117,6 @@
       el('div', { class: 'ob-tools' }, mer));
     ob.append(sec);
 
-    const statDelar = [...ob.children].filter((c) => c !== head && c !== nav && c !== sec);
     let visas = STEG;
 
     function urval() {
@@ -165,19 +158,6 @@
     sok.addEventListener('input', () => { visas = STEG; rita(); });
     mer.addEventListener('click', () => { visas += STEG; rita(); });
 
-    function visa(flik) {
-      const f = flik === 'forslag';
-      statDelar.forEach((e) => { e.hidden = f; });
-      sec.hidden = !f;
-      if (seg) seg.hidden = f;
-      knappStat.setAttribute('aria-selected', String(!f));
-      knappForslag.setAttribute('aria-selected', String(f));
-      if (f) history.replaceState(null, '', '#flik=forslag');
-      else if (location.hash.includes('flik=forslag')) history.replaceState(null, '', '#kalla=' + window.dash.params().kalla);
-      if (f) rita();
-    }
-    knappStat.addEventListener('click', () => visa('statistik'));
-    knappForslag.addEventListener('click', () => visa('forslag'));
-    visa(location.hash.includes('flik=forslag') ? 'forslag' : 'statistik');
+    rita();  // flikarna (flikar.js) visar och döljer sektionen
   };
 })();
