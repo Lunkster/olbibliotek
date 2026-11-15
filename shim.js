@@ -45,6 +45,7 @@
       window.dash._load(out.data);
       if (window.__startForslag) window.__startForslag({ forslag: out.forslag || [], venuer: out.venuer || [] });
       window.OLB_STILGUIDE = out.stilguide || [];
+      window.OLB_OLSTIL = out.olstil || [];
       if (window.__startFlikar) window.__startFlikar();
       const t = document.createElement('p');
       t.style.cssText = 'text-align:center;font-size:12px;color:var(--color-fg-muted)';

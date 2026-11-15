@@ -20,6 +20,9 @@
 
   window.__byggStilguide = (ob) => {
     const guide = new Map((window.OLB_STILGUIDE || []).map((g) => [g.id, g]));
+    // Stil per öl för vaga Untappd-kategorier, grupperat på Untappd-stil
+    const perOl = new Map();
+    for (const o of window.OLB_OLSTIL || []) { if (!perOl.has(o.untappd_stil)) perOl.set(o.untappd_stil, []); perOl.get(o.untappd_stil).push(o); }
     const lista = el('div', { class: 'ob-stilguide' });
     const sok = el('input', { class: 'ob-search', type: 'search', placeholder: 'Sök stil', 'aria-label': 'Sök stil' });
     const sortering = el('select', { class: 'ob-select', 'aria-label': 'Sortera' },
@@ -39,8 +42,11 @@
 
     function detalj(r, g) {
       const kropp = el('div', { class: 'ob-stilkropp' });
+      const bedomda = perOl.get(r.stil) || [];
       if (!g) {
-        kropp.append(el('p', { class: 'ob-muted', text: 'Ingen motsvarighet i stilguiden för den här stilen.' }));
+        kropp.append(el('p', { class: 'ob-muted', text: bedomda.length
+          ? 'Untappds kategori är för vag för en egen stil i guiden. Så här har ölen bedömts utifrån sina beskrivningar och webben:'
+          : 'Ingen motsvarighet i stilguiden för den här stilen.' }));
       } else {
         kropp.append(el('p', { class: 'ob-stilguidenamn' }, el('b', { text: g.namn }), g.familj_namn ? ` · ${g.familj_namn}` : '', g.kalla ? el('span', { class: 'ob-muted', text: ` · ${g.kalla}` }) : null));
         if (g.beskrivning) kropp.append(el('p', { text: g.beskrivning }));
@@ -58,6 +64,14 @@
         }
         if (varden.length) kropp.append(el('dl', { class: 'ob-varden' }, ...varden.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', {}, v)])));
         if (g.exempel) kropp.append(el('p', { class: 'ob-muted' }, el('b', { text: 'Exempel: ' }), g.exempel));
+      }
+      if (bedomda.length) {
+        kropp.append(el('ul', { class: 'ob-olstil' }, ...bedomda.map((o) => el('li', {},
+          el('a', { href: `https://untappd.com/beer/${o.ol_id}`, target: '_blank', rel: 'noopener', text: o.ol }), ' → ',
+          el('b', { text: o.guide_namn }),
+          el('div', { class: 'ob-why', text: `${o.motivering || ''}${o.kalla ? ` (källa: ${o.kalla})` : ''}` })))));
+        const kvar = r.unika_ol - bedomda.length;
+        if (kvar > 0) kropp.append(el('p', { class: 'ob-muted', text: `${nf0.format(kvar)} öl i kategorin kunde inte bedömas – för lite information i beskrivningen och på webben.` }));
       }
       const visa = el('button', { type: 'button', class: 'ob-btn', text: `Visa dina ${nf0.format(r.unika_ol)} öl i stilen` });
       visa.addEventListener('click', () => window.visaITopplista && window.visaITopplista({ understil: r.stil }));
@@ -79,7 +93,7 @@
         const det = el('details', { class: 'ob-stilrad', 'data-stil': r.stil, open: oppna.has(r.stil) },
           el('summary', {},
             el('span', { class: 'ob-stilnamn', text: r.stil }),
-            el('span', { class: 'ob-muted ob-stilguidekort', text: g ? g.namn : '–' }),
+            el('span', { class: 'ob-muted ob-stilguidekort', text: g ? g.namn : perOl.has(r.stil) ? `Olika stilar (${perOl.get(r.stil).length} bedömda öl)` : '–' }),
             el('span', { class: 'ob-stilsiffror', text: `${nf0.format(r.checkins)} st · ${r.snittbetyg == null ? '–' : nf2.format(r.snittbetyg)}` })));
         let byggd = false;
         det.addEventListener('toggle', () => { if (det.open && !byggd) { det.append(detalj(r, g)); byggd = true; } });

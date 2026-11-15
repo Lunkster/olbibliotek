@@ -40,8 +40,13 @@ Deno.serve(async (req) => {
     // Stilguide (Catalog.beer, CC BY 4.0) – bara stilar som är kopplade till dina Untappd-stilar
     const stilguide = await sql`
       select g.id, g.namn, g.familj_namn, g.beskrivning, g.arom, g.smak, g.utseende, g.munkansla, g.exempel, g.specs, g.kalla
-      from dryck.stilguide g where g.id in (select stil_id from dryck.stil_koppling)`;
-    return Response.json({ skapad: new Date().toISOString(), data: ut, forslag, venuer, stilguide });
+      from dryck.stilguide g where g.id in (select stil_id from dryck.stil_koppling union select stil_id from dryck.ol_stil)`;
+    // Stil per öl där Untappds kategori är för vag (källa och motivering)
+    const olstil = await sql`
+      select c.stil untappd_stil, o.id::text ol_id, o.namn ol, s.stil_id, g.namn guide_namn, s.kalla, s.motivering
+      from dryck.ol_stil s join dryck.ol o on o.id = s.ol_id join dryck.stilguide g on g.id = s.stil_id
+      join (select distinct ol_id, stil from dryck.v_checkin) c on c.ol_id = s.ol_id order by c.stil, o.namn`;
+    return Response.json({ skapad: new Date().toISOString(), data: ut, forslag, venuer, stilguide, olstil });
   } catch (e) {
     return Response.json({ error: String((e as Error)?.message ?? e) }, { status: 500 });
   }
